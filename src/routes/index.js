@@ -1,0 +1,12 @@
+const express = require("express");
+const app = express();
+
+const authRoutes = require("./auth.route");
+const adminRoutes = require("./admin.route");
+const employeeRoutes = require("./employee.route");
+
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/employee", employeeRoutes);
+
+module.exports = app;

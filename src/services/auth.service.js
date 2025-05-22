@@ -47,6 +47,7 @@ class Service {
         to: user.email,
         subject: "Login Notification",
         text: `Hello ${user.fullName}, you have successfully logged in.`,
+        html: `<p>Hello ${user.fullName},</p><p>You have successfully logged in.</p>`,
       });
 
       return handlers.response.success({

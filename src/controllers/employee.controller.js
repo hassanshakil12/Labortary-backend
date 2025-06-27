@@ -10,5 +10,21 @@ class Controller {
   async getAppointmentById(req, res) {
     await this.service.getAppointmentById(req, res);
   }
+
+  async gerArchivedAppointments(req, res) {
+    await this.service.gerArchivedAppointments(req, res);
+  }
+
+  async getTodayAppointments(req, res) {
+    await this.service.getTodayAppointments(req, res);
+  }
+
+  async getDashboard(req, res) {
+    await this.service.getDashboard(req, res);
+  }
+
+  async getProfile(req, res) {
+    await this.service.getProfile(req, res);
+  }
 }
 module.exports = new Controller();

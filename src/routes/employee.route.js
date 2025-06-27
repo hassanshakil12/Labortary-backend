@@ -12,5 +12,25 @@ router.get(
   userAuthentication,
   controller.getAppointmentById.bind(controller)
 );
+router.get(
+  "/get-archeived",
+  userAuthentication,
+  controller.gerArchivedAppointments.bind(controller)
+);
+router.get(
+  "/get-today-appointments",
+  userAuthentication,
+  controller.getTodayAppointments.bind(controller)
+);
+router.get(
+  "/get-dashboard",
+  userAuthentication,
+  controller.getDashboard.bind(controller)
+);
+router.get(
+  "/get-profile",
+  userAuthentication,
+  controller.getProfile.bind(controller)
+);
 
 module.exports = router;

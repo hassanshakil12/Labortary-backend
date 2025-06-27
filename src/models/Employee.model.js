@@ -61,6 +61,14 @@ const employeeSchema = new mongoose.Schema(
     userAuthToken: {
       type: String,
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    isNotification: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );

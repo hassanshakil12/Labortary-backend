@@ -1,12 +1,14 @@
 const { handlers } = require("../utils/handlers");
 const bcrypt = require("bcrypt");
 const sendEmail = require("../config/nodemailer");
+const mongoose = require("mongoose");
 
 class Service {
   constructor() {
     this.employee = require("../models/Employee.model");
     this.admin = require("../models/Admin.model");
     this.appointment = require("../models/Appointment.model");
+    this.notification = require("../models/Notification.model");
   }
 
   async addEmployee(req, res) {
@@ -22,6 +24,7 @@ class Service {
         fullName,
         email,
         contactNumber,
+        address,
         hireDate,
         employeeId,
         username,
@@ -35,6 +38,7 @@ class Service {
         !fullName ||
         !email ||
         !contactNumber ||
+        !address ||
         !hireDate ||
         !employeeId ||
         !username ||
@@ -72,6 +76,7 @@ class Service {
         fullName,
         email,
         contactNumber,
+        address,
         hireDate: new Date(hireDate),
         employeeId,
         username,
@@ -86,6 +91,17 @@ class Service {
         return handlers.response.error({
           res,
           message: "Failed to add employee",
+        });
+      }
+
+      if (req.user.isNotification) {
+        await this.notification.create({
+          receiverId: req.user._id,
+          AdminId: req.user._id,
+          type: "system",
+          title: "New Employee Added",
+          body: `New employee ${employee.fullName} has been added to the system.`,
+          isRead: false,
         });
       }
 
@@ -207,7 +223,7 @@ class Service {
         dateOfBirth,
         gender,
         employeeId,
-        testType,
+        labortary,
         fees,
         priorityLevel,
         appointmentDateTime,
@@ -221,7 +237,7 @@ class Service {
         !contactNumber ||
         !appointmentDateTime ||
         !employeeId ||
-        !testType
+        !labortary
       ) {
         return handlers.response.error({
           res,
@@ -245,6 +261,14 @@ class Service {
         image = `uploads/${folder}/${filename}`.replace(/\\/g, "/");
       }
 
+      let documents = [];
+      if (req.files?.documents?.length > 0) {
+        documents = req.files.documents.map((file) => {
+          const folder = file.uploadFolder;
+          const filename = file.savedFilename;
+          return `uploads/${folder}/${filename}`.replace(/\\/g, "/");
+        });
+      }
       const appointment = await this.appointment.create({
         image,
         patientName,
@@ -254,13 +278,25 @@ class Service {
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
         gender,
         employeeId: employee._id, // reference
-        testType,
+        labortary,
         fees,
         priorityLevel,
         appointmentDateTime: new Date(appointmentDateTime),
         status,
         specialInstructions,
+        documents,
       });
+
+      if (employee.isNotification) {
+        await this.notification.create({
+          receiverId: employee._id,
+          AdminId: req.user._id,
+          type: "appointment",
+          title: "New Appointment",
+          body: `New appointment created for ${patientName} at ${appointmentDateTime}`,
+          isRead: false,
+        });
+      }
 
       await Promise.all([
         sendEmail(
@@ -271,7 +307,7 @@ class Service {
         sendEmail(
           email,
           "New Appointment",
-          `You appointment for ${testType} has been created at xyz labortaories`
+          `You appointment for ${labortary} has been created at xyz labortaories`
         ),
         sendEmail(
           employee.email,
@@ -352,6 +388,388 @@ class Service {
         res,
         message: "Appointment fetched successfully.",
         data: appointment,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({
+        res,
+        message: error.message,
+      });
+    }
+  }
+
+  async updateAppointmentStatus(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id || user.role !== "admin") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only admin can access",
+        });
+      }
+
+      const { appointmentId } = req.params;
+      const { status } = req.body;
+
+      if (!appointmentId) {
+        return handlers.response.error({
+          res,
+          message: "Appointment ID is required",
+        });
+      }
+
+      if (!["completed", "pending", "rejected"].includes(status)) {
+        return handlers.response.error({
+          res,
+          message:
+            "Invalid status. Allowed values are: completed, pending, rejected",
+        });
+      }
+
+      const appointment = await this.appointment.findByIdAndUpdate(
+        appointmentId,
+        { status },
+        { new: true }
+      );
+      if (!appointment) {
+        return handlers.response.unavailable({
+          res,
+          message: "Appointment not found",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Appointment updated successfully",
+        data: appointment,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({
+        res,
+        message: error.message,
+      });
+    }
+  }
+
+  async getArchivedAppointments(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id || user.role !== "admin") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only admin can access",
+        });
+      }
+
+      const appointments = await this.appointment.find({
+        $or: [{ status: "completed" }, { status: "rejected" }],
+      });
+
+      if (!appointments) {
+        return handlers.response.unavailable({
+          res,
+          message: "No archived appointments found",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Archived appointments retrieved successfully",
+        data: appointments,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({
+        res,
+        message: error.message,
+      });
+    }
+  }
+
+  async getScheduledAppointments(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id || user.role !== "admin") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only admin can access",
+        });
+      }
+
+      const appointments = await this.appointment.find({
+        status: "pending",
+      });
+      if (!appointments) {
+        return handlers.response.unavailable({
+          res,
+          message: "No scheduled appointments found",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Scheduled appointments retrieved successfully",
+        data: appointments,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({
+        res,
+        message: error.message,
+      });
+    }
+  }
+
+  async getTodayAppointments(req, res) {
+    try {
+      const user = req.user;
+
+      if (!user._id || user.role !== "admin") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only admin can access",
+        });
+      }
+
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+
+      const appointments = await this.appointment.aggregate([
+        {
+          $match: {
+            appointmentDateTime: {
+              $gte: startOfToday,
+              $lt: endOfToday,
+            },
+          },
+        },
+        {
+          $addFields: {
+            priorityOrder: {
+              $switch: {
+                branches: [
+                  { case: { $eq: ["$priorityLevel", "urgent"] }, then: 1 },
+                  { case: { $eq: ["$priorityLevel", "high"] }, then: 2 },
+                  { case: { $eq: ["$priorityLevel", "medium"] }, then: 3 },
+                  { case: { $eq: ["$priorityLevel", "low"] }, then: 4 },
+                ],
+                default: 5, // fallback if undefined
+              },
+            },
+          },
+        },
+        {
+          $sort: {
+            priorityOrder: 1, // High -> Medium -> Low
+            appointmentDateTime: 1, // Then sort by time
+          },
+        },
+      ]);
+
+      if (!appointments) {
+        return handlers.response.unavailable({
+          res,
+          message: "No appointments found for today",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Today's appointments retrieved successfully",
+        data: appointments,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({
+        res,
+        message: error.message,
+      });
+    }
+  }
+
+  async getEmployees(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id || user.role !== "admin") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only admin can access",
+        });
+      }
+
+      const employees = await this.employee.find().select("-password");
+      if (!employees) {
+        return handlers.response.unavailable({
+          res,
+          message: "Employees not found",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Employees retrieved successfully",
+        data: employees,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({
+        res,
+        message: error.message,
+      });
+    }
+  }
+
+  async getEmployeeById(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id || user.role !== "admin") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only admin can access",
+        });
+      }
+
+      const { employeeId } = req.params;
+
+      const employee = await this.employee
+        .findById(employeeId)
+        .select("-password");
+      if (!employee) {
+        return handlers.response.unavailable({
+          res,
+          message: "Employee not found",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Employee retrieved successfully",
+        data: employee,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({
+        res,
+        message: error.message,
+      });
+    }
+  }
+
+  async getActiveEmployees(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id || user.role !== "admin") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only admin can access",
+        });
+      }
+
+      const employees = await this.employee
+        .find({ isActive: true })
+        .select("-password");
+      if (!employees) {
+        return handlers.response.unavailable({
+          res,
+          message: "No active employees found",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Active employees retrieved successfully",
+        data: employees,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({
+        res,
+        message: error.message,
+      });
+    }
+  }
+
+  async deleteEmployee(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id || user.role !== "admin") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only admin can access",
+        });
+      }
+
+      const { employeeId } = req.params;
+      if (!employeeId) {
+        return handlers.response.error({
+          res,
+          message: "Employee ID is required",
+        });
+      }
+
+      const employee = await this.employee.findByIdAndDelete(employeeId);
+      if (!employee) {
+        return handlers.response.unavailable({
+          res,
+          message: "Employee not found",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Employee deleted successfully",
+        data: employee,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({
+        res,
+        message: error.message,
+      });
+    }
+  }
+
+  async getDashboard(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id || user.role !== "admin") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only admin can access",
+        });
+      }
+
+      const [
+        totalEmployees,
+        totalAppointments,
+        completedAppointments,
+        pendingAppointments,
+        rejectedAppointments,
+        paidAppointments,
+      ] = await Promise.all([
+        this.employee.countDocuments(),
+        this.appointment.countDocuments(),
+        this.appointment.countDocuments({ status: "completed" }),
+        this.appointment.countDocuments({ status: "pending" }),
+        this.appointment.countDocuments({ status: "rejected" }),
+        this.appointment.countDocuments({ isPaid: true }),
+      ]);
+
+      return handlers.response.success({
+        res,
+        message: "Dashboard data retrieved successfully",
+        data: {
+          totalEmployees,
+          totalAppointments,
+          completedAppointments,
+          pendingAppointments,
+          rejectedAppointments,
+          paidAppointments,
+        },
       });
     } catch (error) {
       handlers.logger.failed({ message: error.message });

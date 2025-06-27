@@ -26,6 +26,42 @@ class Controller {
   async getAppointmentById(req, res) {
     await this.service.getAppointmentById(req, res);
   }
+
+  async updateAppointmentStatus(req, res) {
+    await this.service.updateAppointmentStatus(req, res);
+  }
+
+  async getArchivedAppointments(req, res) {
+    await this.service.getArchivedAppointments(req, res);
+  }
+
+  async getScheduledAppointments(req, res) {
+    await this.service.getScheduledAppointments(req, res);
+  }
+
+  async getTodayAppointments(req, res) {
+    await this.service.getTodayAppointments(req, res);
+  }
+
+  async getEmployees(req, res) {
+    await this.service.getEmployees(req, res);
+  }
+
+  async getEmployeeById(req, res) {
+    await this.service.getEmployeeById(req, res);
+  }
+
+  async getActiveEmployees(req, res) {
+    await this.service.getActiveEmployees(req, res);
+  }
+
+  async deleteEmployee(req, res) {
+    await this.service.deleteEmployee(req, res);
+  }
+
+  async getDashboard(req, res) {
+    await this.service.getDashboard(req, res);
+  }
 }
 
 module.exports = new Controller();

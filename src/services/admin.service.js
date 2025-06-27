@@ -371,7 +371,7 @@ class Service {
         });
       }
 
-      const { appointmentId } = req.body;
+      const { appointmentId } = req.params;
 
       const appointment = await this.appointment
         .findById(appointmentId)

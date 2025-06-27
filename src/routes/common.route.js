@@ -17,7 +17,7 @@ router.post(
   userAuthentication,
   controller.toggleNotification.bind(controller)
 );
-router.get(
+router.post(
   "/toggle-account",
   userAuthentication,
   controller.toggleAccount.bind(controller)

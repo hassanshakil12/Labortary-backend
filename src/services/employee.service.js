@@ -52,10 +52,12 @@ class Service {
 
       const { appointmentId } = req.params;
 
-      const appointment = await this.appointment.find({
-        _id: appointmentId,
-        employeeId: req.user._id,
-      });
+      const appointment = await this.appointment
+        .find({
+          _id: appointmentId,
+          employeeId: req.user._id,
+        })
+        .populate("employeeId");
 
       if (!appointment) {
         return handlers.response.unavailable({

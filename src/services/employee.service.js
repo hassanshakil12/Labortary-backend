@@ -50,7 +50,7 @@ class Service {
         });
       }
 
-      const { appointmentId } = req.body;
+      const { appointmentId } = req.params;
 
       const appointment = await this.appointment.find({
         _id: appointmentId,
@@ -85,10 +85,12 @@ class Service {
         });
       }
 
-      const archivedAppointments = await this.appointment.find({
-        employeeId: user._id,
-        status: "completed",
-      });
+      const archivedAppointments = await this.appointment
+        .find({
+          employeeId: user._id,
+          status: "completed",
+        })
+        .populate("employeeId");
 
       if (!archivedAppointments) {
         return handlers.response.unavailable({
@@ -156,6 +158,17 @@ class Service {
             appointmentDateTime: 1,
           },
         },
+        {
+          $lookup: {
+            from: "employees", // collection name, not model name
+            localField: "employeeId",
+            foreignField: "_id",
+            as: "employeeData",
+          },
+        },
+        {
+          $unwind: "$employeeData",
+        },
       ]);
 
       if (!appointments) {
@@ -204,6 +217,7 @@ class Service {
           {
             $match: {
               employeeId: new mongoose.Types.ObjectId(employeeId),
+              isPaid: true,
             },
           },
           {
@@ -214,18 +228,6 @@ class Service {
           },
         ]),
       ]);
-
-      if (
-        !totalAppointments ||
-        !completedAppointments ||
-        !pendingAppointments ||
-        totalFeesResult
-      ) {
-        return handlers.response.unavailable({
-          res,
-          message: "Something not found",
-        });
-      }
 
       const totalFees = totalFeesResult[0]?.totalFees || 0;
 

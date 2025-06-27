@@ -8,7 +8,7 @@ router.get(
   controller.getAppointments.bind(controller)
 );
 router.get(
-  "/get-appointment",
+  "/get-appointment/:appointmentId",
   userAuthentication,
   controller.getAppointmentById.bind(controller)
 );

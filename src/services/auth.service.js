@@ -40,7 +40,7 @@ class Service {
         });
       }
 
-      user.userAuthToken = generateToken(user._id);
+      user.userAuthToken = generateToken(user._id, user.role);
       await user.save();
 
       sendEmail({
@@ -55,6 +55,7 @@ class Service {
         message: "Login successful...",
         data: {
           userAuthToken: user.userAuthToken,
+          role: user.role,
         },
       });
     } catch (error) {

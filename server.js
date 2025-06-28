@@ -48,6 +48,7 @@ app.use(
   cors({
     origins: process.env.CLIENT_URL || "*",
     methods: ["GET", "POST"],
+    credentials: true,
   })
 );
 

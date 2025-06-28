@@ -61,7 +61,13 @@ const adminSchema = new mongoose.Schema(
     hireDate: {
       type: Date,
       default: Date.now,
-    }
+    },
+    department: {
+      type: String,
+      required: true,
+      enum: ["Admin"],
+      default: "Admin",
+    },
   },
   { timestamps: true }
 );

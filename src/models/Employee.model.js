@@ -77,6 +77,10 @@ const employeeSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    department: {
+      type: String,
+      enum: ["Laboratory", "Radiology", "Pharmacy", "Admin"],
+    },
   },
   { timestamps: true }
 );

@@ -33,6 +33,7 @@ class Service {
         shiftTiming,
         about,
         gender,
+        department,
       } = req.body;
 
       if (
@@ -45,12 +46,19 @@ class Service {
         !username ||
         !password ||
         !jobRole ||
+        !department ||
         !gender
       ) {
         return handlers.response.error({
           res,
           message: "All fields are required",
         });
+      }
+
+      if (
+        !["Laboratory", "Radiology", "Pharmacy", "Admin"].includes(department)
+      ) {
+        return handlers.response.error({ res, message: "Invalid department" });
       }
 
       const existingEmployee = await this.employee.findOne({
@@ -88,6 +96,7 @@ class Service {
         about,
         image,
         gender,
+        department,
       });
 
       if (!employee) {
@@ -465,9 +474,11 @@ class Service {
         });
       }
 
-      const appointments = await this.appointment.find({
-        $or: [{ status: "completed" }, { status: "rejected" }],
-      });
+      const appointments = await this.appointment
+        .find({
+          $or: [{ status: "completed" }, { status: "rejected" }],
+        })
+        .populate("employeeId");
 
       if (!appointments) {
         return handlers.response.unavailable({

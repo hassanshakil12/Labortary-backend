@@ -99,6 +99,7 @@ const adminSeeder = async () => {
       jobRole: "Admin",
       address: "123 Admin Street, Admin City",
       gender: "Female",
+      department: "Admin",
     };
 
     const newAdmin = await admin.create(data);

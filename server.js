@@ -46,7 +46,7 @@ app.use(morgan(process.env.NODE_ENV === "development" ? "dev" : "combined"));
 
 app.use(
   cors({
-    origins: process.env.CLIENT_URL || "*",
+    origins: "https://host3clientstaging.netlify.app" || "*",
     methods: ["GET", "POST"],
     credentials: true,
   })

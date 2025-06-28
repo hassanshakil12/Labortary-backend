@@ -17,6 +17,14 @@ const employeeSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    address: {
+      type: Number,
+      trim: true,
+    },
+    gender: {
+      type: Number,
+      trim: true,
+    },
     hireDate: {
       type: Date,
       required: true,

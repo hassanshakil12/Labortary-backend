@@ -38,7 +38,7 @@ const server =
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use(helmet());
 
@@ -97,6 +97,8 @@ const adminSeeder = async () => {
       username: "admin",
       password: hashedPassword,
       jobRole: "Admin",
+      address: "123 Admin Street, Admin City",
+      gender: "Female",
     };
 
     const newAdmin = await admin.create(data);

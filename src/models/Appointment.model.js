@@ -27,7 +27,7 @@ const appointmentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",
     },
-    testType: {
+    labortary: {
       type: String,
     },
     fees: {

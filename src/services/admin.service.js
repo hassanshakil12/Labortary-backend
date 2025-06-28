@@ -32,6 +32,7 @@ class Service {
         jobRole,
         shiftTiming,
         about,
+        gender,
       } = req.body;
 
       if (
@@ -43,7 +44,8 @@ class Service {
         !employeeId ||
         !username ||
         !password ||
-        !jobRole
+        !jobRole ||
+        !gender
       ) {
         return handlers.response.error({
           res,
@@ -85,6 +87,7 @@ class Service {
         shiftTiming,
         about,
         image,
+        gender,
       });
 
       if (!employee) {

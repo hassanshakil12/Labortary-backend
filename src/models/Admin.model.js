@@ -35,7 +35,7 @@ const adminSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ["admin"],
-      default: "admin"
+      default: "admin",
     },
     image: {
       type: String,
@@ -43,6 +43,25 @@ const adminSchema = new mongoose.Schema(
     userAuthToken: {
       type: String,
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    isNotification: {
+      type: Boolean,
+      default: true,
+    },
+    address: {
+      type: String,
+      trim: true,
+    },
+    gender: {
+      type: String,
+    },
+    hireDate: {
+      type: Date,
+      default: Date.now,
+    }
   },
   { timestamps: true }
 );

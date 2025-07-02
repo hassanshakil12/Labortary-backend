@@ -46,7 +46,7 @@ app.use(morgan(process.env.NODE_ENV === "development" ? "dev" : "combined"));
 
 app.use(
   cors({
-    origins: "https://host3clientstaging.netlify.app" || "*",
+    origins: "https://allmobileportal.com" || "*",
     methods: ["GET", "POST"],
     credentials: true,
   })

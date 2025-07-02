@@ -46,11 +46,12 @@ app.use(morgan(process.env.NODE_ENV === "development" ? "dev" : "combined"));
 
 app.use(
   cors({
-    origin: [
-      "https://allmobileportal.com",
-      "https://www.allmobileportal.com",
-      "*",
-    ],
+    origin: "*",
+    // origin: [
+    //   "https://allmobileportal.com",
+    //   "https://www.allmobileportal.com",
+    //   "*",
+    // ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   })

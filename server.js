@@ -52,8 +52,6 @@ app.use(
   })
 );
 
-app.options("*", cors());
-
 app.use(
   compression({
     level: 6,

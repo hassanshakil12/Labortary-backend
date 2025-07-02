@@ -1,5 +1,6 @@
 const { handlers } = require("../utils/handlers");
 const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
 
 class Service {
   constructor() {

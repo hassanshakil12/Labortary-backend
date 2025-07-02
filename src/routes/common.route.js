@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const controller = require("../controllers/common.controller");
 const userAuthentication = require("../middlewares/userAuthentication");
+const upload = require("../middlewares/multer")
 
 router.get(
   "/get-notifications",
@@ -21,6 +22,17 @@ router.post(
   "/toggle-account",
   userAuthentication,
   controller.toggleAccount.bind(controller)
+);
+router.post(
+  "/update-profile",
+  userAuthentication,
+  upload.fields([{ name: "image", maxCount: 1 }]),
+  controller.updateProfile.bind(controller)
+);
+router.post(
+  "/change-password",
+  userAuthentication,
+  controller.changePassword.bind(controller)
 );
 
 module.exports = router;

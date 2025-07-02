@@ -26,5 +26,17 @@ class Controller {
   async changePassword(req, res) {
     await this.service.changePassword(req, res);
   }
+
+  async forgetPassword(req, res) {
+    await this.service.forgetPassword(req, res);
+  }
+
+  async verifyForgetPasswordOTP(req, res) {
+    await this.service.verifyForgetPasswordOTP(req, res);
+  }
+
+  async resetPassword(req, res) {
+    await this.service.resetPassword(req, res);
+  }
 }
 module.exports = new Controller();

@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const controller = require("../controllers/common.controller");
 const userAuthentication = require("../middlewares/userAuthentication");
-const upload = require("../middlewares/multer")
+const upload = require("../middlewares/multer");
 
 router.get(
   "/get-notifications",
@@ -34,5 +34,8 @@ router.post(
   userAuthentication,
   controller.changePassword.bind(controller)
 );
+router.post("/forgot-password", controller.forgetPassword.bind(controller));
+router.post("/verify-otp", controller.verifyForgetPasswordOTP.bind(controller));
+router.post("/reset-password", controller.resetPassword.bind(controller));
 
 module.exports = router;

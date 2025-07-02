@@ -1,6 +1,8 @@
 const { handlers } = require("../utils/handlers");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
+const sendEmail = require("../config/nodemailer");
+const { generateOTP } = require("../utils/generators");
 
 class Service {
   constructor() {
@@ -19,9 +21,11 @@ class Service {
         });
       }
 
-      const notifications = await this.notification.find({
-        receiverId: user._id,
-      });
+      const notifications = await this.notification
+        .find({
+          receiverId: user._id,
+        })
+        .sort({ createdAt: -1 });
       if (!notifications) {
         return handlers.response.unavailable({
           res,
@@ -336,6 +340,133 @@ class Service {
         res,
         message: "Password changed successfully",
         data: user,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({ res, message: error.message });
+    }
+  }
+
+  async forgetPassword(req, res) {
+    try {
+      const { email, role } = req.body;
+      if (!email || !role) {
+        return handlers.response.error({
+          res,
+          message: "Email and role are required",
+        });
+      }
+
+      const model = role === "admin" ? this.admin : this.employee;
+      const user = await model.findOne({ email });
+
+      if (!user) {
+        return handlers.response.unavailable({
+          res,
+          message: "User not found",
+        });
+      }
+
+      const otp = generateOTP(); // secure random OTP
+      user.forgetPasswordOTP = otp;
+      await user.save();
+
+      await sendEmail(
+        user.email,
+        "Forget Password OTP",
+        "Here is the OTP to reset your password",
+        `<p>Dear ${user.fullName},</p>
+         <p>Your OTP for resetting your password is: <strong>${otp}</strong></p>
+         <p>Please use this OTP to reset your password.</p>
+         <p>Thank you,</p>`
+      );
+
+      return handlers.response.success({
+        res,
+        message: "OTP has been sent to your email",
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({ res, message: error.message });
+    }
+  }
+
+  async verifyForgetPasswordOTP(req, res) {
+    try {
+      const { email, otp, role } = req.body;
+      if (!email || !otp || !role) {
+        return handlers.response.error({
+          res,
+          message: "Email, OTP, and role are required",
+        });
+      }
+
+      const model = role === "admin" ? this.admin : this.employee;
+      const user = await model.findOne({ email });
+
+      if (!user) {
+        return handlers.response.unavailable({
+          res,
+          message: "User not found",
+        });
+      }
+
+      if (user.forgetPasswordOTP !== otp) {
+        return handlers.response.error({
+          res,
+          message: "Invalid OTP",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "OTP verified successfully",
+        data: { userId: user._id },
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({ res, message: error.message });
+    }
+  }
+
+  async resetPassword(req, res) {
+    try {
+      const { userId, newPassword, role } = req.body;
+      if (!userId || !newPassword || !role) {
+        return handlers.response.error({
+          res,
+          message: "User ID, new password, and role are required",
+        });
+      }
+
+      const model = role === "admin" ? this.admin : this.employee;
+      const user = await model.findById(userId);
+
+      if (!user) {
+        return handlers.response.unavailable({
+          res,
+          message: "User not found",
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      user.password = hashedPassword;
+      user.forgetPasswordOTP = null;
+      await user.save();
+
+      if (user.isNotification) {
+        await this.notification.create({
+          receiverId: user._id,
+          type: "system",
+          title: "Password Reset",
+          body: `You have successfully reset your password at ${new Date()}.`,
+          isRead: false,
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Password reset successfully",
       });
     } catch (error) {
       handlers.logger.failed({ message: error.message });

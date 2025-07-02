@@ -81,6 +81,9 @@ const employeeSchema = new mongoose.Schema(
       type: String,
       enum: ["Laboratory", "Radiology", "Pharmacy", "Admin"],
     },
+    forgetPasswordOTP: {
+      type: Number,
+    },
   },
   { timestamps: true }
 );

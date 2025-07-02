@@ -68,6 +68,9 @@ const adminSchema = new mongoose.Schema(
       enum: ["Admin"],
       default: "Admin",
     },
+    forgetPasswordOTP: {
+      type: Number,
+    },
   },
   { timestamps: true }
 );

@@ -215,7 +215,6 @@ class Service {
           address,
           gender,
           username,
-          about,
           jobRole,
           hireDate,
         } = req.body;
@@ -225,7 +224,6 @@ class Service {
           !email ||
           !contactNumber ||
           !username ||
-          !about ||
           !gender ||
           !address ||
           !jobRole ||
@@ -263,7 +261,6 @@ class Service {
         user.gender = gender;
         user.username = username;
         user.address = address;
-        user.about = about;
         user.jobRole = jobRole;
         user.hireDate = hireDate;
         user.image = image;

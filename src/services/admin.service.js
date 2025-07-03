@@ -959,7 +959,7 @@ class Service {
       const totalEarnings = await this.transaction.aggregate([
         {
           $match: {
-            dateAndTime: {
+            createdAt: {
               $gte: startOfMonth,
               $lt: endOfMonth,
             },
@@ -981,10 +981,12 @@ class Service {
         });
       }
 
+      const earnings = totalEarnings[0]?.totalAmount || 0;
+
       return handlers.response.success({
         res,
         message: "Total earnings of the current month retrieved successfully",
-        data: totalEarnings[0].totalAmount,
+        data: earnings,
       });
     } catch (error) {
       handlers.logger.failed({ message: error.message });

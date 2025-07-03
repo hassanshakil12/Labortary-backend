@@ -89,7 +89,7 @@ router.get(
   controller.getTransactions.bind(controller)
 );
 router.post(
-  "/update-transaction",
+  "/update-transaction/:transactionId",
   userAuthentication,
   controller.updateTransactionStatus.bind(controller)
 );

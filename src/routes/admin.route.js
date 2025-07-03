@@ -84,12 +84,12 @@ router.get(
   controller.getDashboard.bind(controller)
 );
 router.get(
-  "/get-trnasactions",
+  "/get-transactions",
   userAuthentication,
   controller.getTransactions.bind(controller)
 );
 router.post(
-  "/update-trnasaction",
+  "/update-transaction",
   userAuthentication,
   controller.updateTransactionStatus.bind(controller)
 );

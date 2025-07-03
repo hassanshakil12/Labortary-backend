@@ -51,7 +51,7 @@ const appointmentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    documnts: [
+    documents: [
       {
         type: String,
       },

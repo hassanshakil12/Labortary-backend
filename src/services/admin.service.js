@@ -9,6 +9,7 @@ class Service {
     this.admin = require("../models/Admin.model");
     this.appointment = require("../models/Appointment.model");
     this.notification = require("../models/Notification.model");
+    this.transaction = require("../models/Transaction.model");
   }
 
   async addEmployee(req, res) {
@@ -241,6 +242,7 @@ class Service {
         appointmentDateTime,
         status,
         specialInstructions,
+        accountNumber,
       } = req.body;
 
       if (
@@ -249,7 +251,8 @@ class Service {
         !contactNumber ||
         !appointmentDateTime ||
         !employeeId ||
-        !labortary
+        !labortary ||
+        !accountNumber
       ) {
         return handlers.response.error({
           res,
@@ -298,6 +301,20 @@ class Service {
         specialInstructions,
         documents,
       });
+
+      const transaction = await this.transaction.create({
+        appointmentId: appointment._id,
+        accountNumber,
+        patientName,
+        dateAndTime: new Date(appointmentDateTime),
+        amount: fees,
+      });
+      if (!transaction) {
+        return handlers.response.error({
+          res,
+          message: "Failed to create transaction.",
+        });
+      }
 
       if (employee.isNotification) {
         await this.notification.create({
@@ -784,6 +801,190 @@ class Service {
           rejectedAppointments,
           paidAppointments,
         },
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({
+        res,
+        message: error.message,
+      });
+    }
+  }
+
+  async getTransactions(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id || user.role !== "admin") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only admin can access",
+        });
+      }
+
+      const transactions = await this.transaction
+        .find()
+        .populate("appointmentId")
+        .sort({ createdAt: -1 });
+
+      if (!transactions) {
+        return handlers.response.unavailable({
+          res,
+          message: "No transactions found",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Transactions retrieved successfully",
+        data: transactions,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({
+        res,
+        message: error.message,
+      });
+    }
+  }
+
+  async updateTransactionStatus(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id || user.role !== "admin") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only admin can access",
+        });
+      }
+
+      const { transactionId } = req.params;
+      const { status } = req.body;
+
+      if (!transactionId) {
+        return handlers.response.error({
+          res,
+          message: "Transaction ID is required",
+        });
+      }
+
+      if (!["Pending", "Completed", "Denied"].includes(status)) {
+        return handlers.response.error({
+          res,
+          message:
+            "Invalid status. Allowed values are: Pending, Completed, Denied",
+        });
+      }
+
+      const transaction = await this.transaction.findByIdAndUpdate(
+        transactionId,
+        { status },
+        { new: true }
+      );
+      if (!transaction) {
+        return handlers.response.unavailable({
+          res,
+          message: "Transaction not found",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Transaction updated successfully",
+        data: transaction,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({
+        res,
+        message: error.message,
+      });
+    }
+  }
+
+  async getRecentTransaction(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id || user.role !== "admin") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only admin can access",
+        });
+      }
+
+      const transaction = await this.transaction
+        .find({
+          $or: [{ status: "Denied" }, { status: "Completed" }],
+        })
+        .sort({ createdAt: -1 })
+        .limit(1);
+
+      if (!transaction) {
+        return handlers.response.unavailable({
+          res,
+          message: "No recent transactions found",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Recent transaction retrieved successfully",
+        data: transaction,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({
+        res,
+        message: error.message,
+      });
+    }
+  }
+
+  async getTotalEarningsOfCurrentMonth(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id || user.role !== "admin") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only admin can access",
+        });
+      }
+
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const endOfMonth = new Date();
+      endOfMonth.setHours(23, 59, 59, 999);
+
+      const totalEarnings = await this.transaction.aggregate([
+        {
+          $match: {
+            dateAndTime: {
+              $gte: startOfMonth,
+              $lt: endOfMonth,
+            },
+            status: "Completed",
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: "$amount" },
+          },
+        },
+      ]);
+
+      if (!totalEarnings) {
+        return handlers.response.unavailable({
+          res,
+          message: "No earnings found for the current month",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Total earnings of the current month retrieved successfully",
+        data: totalEarnings[0].totalAmount,
       });
     } catch (error) {
       handlers.logger.failed({ message: error.message });

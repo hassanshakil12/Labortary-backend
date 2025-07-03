@@ -83,5 +83,25 @@ router.get(
   userAuthentication,
   controller.getDashboard.bind(controller)
 );
+router.get(
+  "/get-trnasactions",
+  userAuthentication,
+  controller.getTransactions.bind(controller)
+);
+router.post(
+  "/update-trnasaction",
+  userAuthentication,
+  controller.updateTransactionStatus.bind(controller)
+);
+router.get(
+  "/get-recent-transaction",
+  userAuthentication,
+  controller.getRecentTransaction.bind(controller)
+);
+router.get(
+  "/get-total-earning",
+  userAuthentication,
+  controller.getTotalEarningsOfCurrentMonth.bind(controller)
+);
 
 module.exports = router;

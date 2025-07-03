@@ -62,6 +62,22 @@ class Controller {
   async getDashboard(req, res) {
     await this.service.getDashboard(req, res);
   }
+
+  async getTransactions(req, res) {
+    await this.service.getTransactions(req, res);
+  }
+
+  async updateTransactionStatus(req, res) {
+    await this.service.updateTransactionStatus(req, res);
+  }
+
+  async getRecentTransaction(req, res) {
+    await this.service.getRecentTransaction(req, res);
+  }
+
+  async getTotalEarningsOfCurrentMonth(req, res) {
+    await this.service.getTotalEarningsOfCurrentMonth(req, res);
+  }
 }
 
 module.exports = new Controller();

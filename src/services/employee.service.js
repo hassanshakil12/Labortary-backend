@@ -145,10 +145,10 @@ class Service {
             priorityOrder: {
               $switch: {
                 branches: [
-                  { case: { $eq: ["$priorityLevel", "urgent"] }, then: 1 },
-                  { case: { $eq: ["$priorityLevel", "high"] }, then: 2 },
-                  { case: { $eq: ["$priorityLevel", "medium"] }, then: 3 },
-                  { case: { $eq: ["$priorityLevel", "low"] }, then: 4 },
+                  { case: { $eq: ["$priorityLevel", "Urgent"] }, then: 1 },
+                  { case: { $eq: ["$priorityLevel", "High"] }, then: 2 },
+                  { case: { $eq: ["$priorityLevel", "Medium"] }, then: 3 },
+                  { case: { $eq: ["$priorityLevel", "Low"] }, then: 4 },
                 ],
                 default: 5,
               },

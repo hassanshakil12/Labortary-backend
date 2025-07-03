@@ -243,6 +243,7 @@ class Service {
         status,
         specialInstructions,
         accountNumber,
+        age,
       } = req.body;
 
       if (
@@ -252,11 +253,35 @@ class Service {
         !appointmentDateTime ||
         !employeeId ||
         !labortary ||
-        !accountNumber
+        !accountNumber ||
+        !age
       ) {
         return handlers.response.error({
           res,
           message: "Required fields are missing.",
+        });
+      }
+
+      if (isNaN(age)) {
+        return handlers.response.error({
+          res,
+          message: "Invalid age. Age must be a number.",
+        });
+      }
+
+      if (!["Urgent", "High", "Medium", "Low"].includes(priorityLevel)) {
+        return handlers.response.error({
+          res,
+          message:
+            "Invalid Priority Level. Allowed values are: Urgent, High, Medium, Low",
+        });
+      }
+
+      if (!["Pending", "Completed", "Rejected"].includes(status)) {
+        return handlers.response.error({
+          res,
+          message:
+            "Invalid Status. Allowed values are: Pending, Completed, Rejected",
         });
       }
 
@@ -300,6 +325,8 @@ class Service {
         status,
         specialInstructions,
         documents,
+        age,
+        accountNumber,
       });
 
       const transaction = await this.transaction.create({
@@ -583,10 +610,10 @@ class Service {
             priorityOrder: {
               $switch: {
                 branches: [
-                  { case: { $eq: ["$priorityLevel", "urgent"] }, then: 1 },
-                  { case: { $eq: ["$priorityLevel", "high"] }, then: 2 },
-                  { case: { $eq: ["$priorityLevel", "medium"] }, then: 3 },
-                  { case: { $eq: ["$priorityLevel", "low"] }, then: 4 },
+                  { case: { $eq: ["$priorityLevel", "Urgent"] }, then: 1 },
+                  { case: { $eq: ["$priorityLevel", "High"] }, then: 2 },
+                  { case: { $eq: ["$priorityLevel", "Medium"] }, then: 3 },
+                  { case: { $eq: ["$priorityLevel", "Low"] }, then: 4 },
                 ],
                 default: 5, // fallback if undefined
               },
@@ -912,9 +939,7 @@ class Service {
       }
 
       const transaction = await this.transaction
-        .find({
-          $or: [{ status: "Denied" }, { status: "Completed" }],
-        })
+        .find({ status: "Completed" })
         .sort({ createdAt: -1 })
         .limit(1);
 

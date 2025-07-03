@@ -35,13 +35,15 @@ const appointmentSchema = new mongoose.Schema(
     },
     priorityLevel: {
       type: String,
+      enum: ["Urgent", "High", "Medium", "Low"],
+      default: "Low",
     },
     appointmentDateTime: {
       type: Date,
     },
     status: {
       type: String,
-      enum: ["pending", "completed", "rejected"],
+      enum: ["Pending", "Completed", "Rejected"],
       default: "Pending",
     },
     specialInstructions: {
@@ -50,6 +52,12 @@ const appointmentSchema = new mongoose.Schema(
     isPaid: {
       type: Boolean,
       default: false,
+    },
+    age: {
+      type: Number,
+    },
+    accountNumber: {
+      type: String,
     },
     documents: [
       {

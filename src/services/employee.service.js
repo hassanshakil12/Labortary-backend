@@ -278,6 +278,61 @@ class Service {
       return handlers.response.failed({ res, message: error.message });
     }
   }
+
+  async uploadTrackingId(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id || user.role !== "employee") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only employees can access",
+        });
+      }
+
+      const { appointmentId } = req.params;
+      if (!appointmentId) {
+        return handlers.response.error({
+          res,
+          message: "Appointment Id not found",
+        });
+      }
+
+      const appointment = await this.appointment.findById(appointmentId);
+      if (!appointment) {
+        return handlers.response.unavailable({
+          res,
+          message: "Appointment not found",
+        });
+      }
+
+      if (appointment && appointment.trackingId) {
+        return handlers.response.error({
+          res,
+          message: "Tracking ID already exists for this appointment",
+        });
+      }
+
+      let image;
+      if (req.files?.image?.[0]) {
+        const file = req.files.image[0];
+        const folder = file.uploadFolder;
+        const filename = file.savedFilename;
+        image = `uploads/${folder}/${filename}`.replace(/\\/g, "/");
+      }
+
+      appointment.trackingId = image || appointment.trackingId;
+      await appointment.save();
+
+      return handlers.response.success({
+        res,
+        message: "Tracking Id uploaded successfully",
+        data: appointment,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({ res, message: error.message });
+    }
+  }
 }
 
 module.exports = new Service();

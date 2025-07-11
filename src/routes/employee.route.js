@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const controller = require("../controllers/employee.controller");
 const userAuthentication = require("../middlewares/userAuthentication");
+const upload = require("../middlewares/multer");
 
 router.get(
   "/get-appointments",
@@ -31,6 +32,12 @@ router.get(
   "/get-profile",
   userAuthentication,
   controller.getProfile.bind(controller)
+);
+router.post(
+  "/upload-tracking/:appointmentId",
+  userAuthentication,
+  upload.fields([{ name: "image", maxCount: 1 }]),
+  controller.uploadTrackingId.bind(controller)
 );
 
 module.exports = router;

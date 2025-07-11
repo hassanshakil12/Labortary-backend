@@ -64,6 +64,10 @@ const appointmentSchema = new mongoose.Schema(
         type: String,
       },
     ],
+    trackingId: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

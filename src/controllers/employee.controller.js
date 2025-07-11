@@ -26,5 +26,9 @@ class Controller {
   async getProfile(req, res) {
     await this.service.getProfile(req, res);
   }
+
+  async uploadTrackingId(req, res) {
+    await this.service.uploadTrackingId(req, res);
+  }
 }
 module.exports = new Controller();

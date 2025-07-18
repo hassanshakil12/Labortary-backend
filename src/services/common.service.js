@@ -9,6 +9,7 @@ class Service {
     this.employee = require("../models/Employee.model");
     this.appointment = require("../models/Appointment.model");
     this.notification = require("../models/Notification.model");
+    this.laboratory = require("../models/Laboratory.model");
   }
 
   async getNoifications(req, res) {
@@ -281,6 +282,122 @@ class Service {
           message: "Profile updated successfully",
           data: user,
         });
+      } else if (user.role === "laboraotry") {
+        const { fullName, email, contactNumber, address, username, about } =
+          req.body;
+        let { timings } = req.body;
+
+        if (!fullName || !email || !contactNumber || !username || !address) {
+          return handlers.response.error({
+            res,
+            message: "All fields are required",
+          });
+        }
+
+        if (typeof timings === "string") {
+          try {
+            timings = JSON.parse(timings);
+            console.log(typeof timings);
+            console.log("Parsed timings:", timings);
+          } catch (error) {
+            return handlers.response.error({
+              res,
+              message: "Invalid JSON format for timings",
+            });
+          }
+        }
+
+        if (
+          email &&
+          !/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(email)
+        ) {
+          return handlers.response.error({
+            res,
+            message: "Invalid email format",
+          });
+        } else if (username && username.trim() === "") {
+          return handlers.response.error({
+            res,
+            message: "Username is required",
+          });
+        } else if (fullName && fullName.trim() === "") {
+          return handlers.response.error({
+            res,
+            message: "Fullname is required",
+          });
+        } else if (address && address.trim() === "") {
+          return handlers.response.error({
+            res,
+            message: "Address is required",
+          });
+        } else if (
+          isNaN(contactNumber) ||
+          !/^\+?[1-9]\d{1,14}$/.test(contactNumber)
+        ) {
+          return handlers.response.error({
+            res,
+            message: "Invalid contact number format",
+          });
+        } else if (!Array.isArray(timings) || timings.length === 0) {
+          return handlers.response.error({
+            res,
+            message: "Timings must be an array and cannot be empty",
+          });
+        } else if (about && about.trim().length < 10) {
+          return handlers.response.error({
+            res,
+            message: "About section must be at least 10 character long",
+          });
+        }
+
+        let image = user.image || null;
+        if (req.files?.image?.[0]) {
+          const file = req.files.image[0];
+          const folder = file.uploadFolder;
+          const filename = file.savedFilename;
+          image = `uploads/${folder}/${filename}`.replace(/\\/g, "/");
+        }
+
+        const existingUser = await this.laboratory.findOne({
+          $or: [
+            { email: email.toLowerCase().trim() },
+            { contactNumber: contactNumber.trim() },
+            { username: username.trim().toLowerCase() },
+          ],
+          _id: { $ne: user._id },
+        });
+        if (existingUser) {
+          return handlers.response.error({
+            res,
+            message: "Email, contact number, or username already exists",
+          });
+        }
+
+        user.fullName = fullName;
+        user.email = email;
+        user.contactNumber = contactNumber;
+        user.address = address;
+        user.username = username;
+        user.image = image;
+        user.about = about;
+        user.timings = timings;
+        await user.save();
+
+        if (user.isNotification) {
+          await this.notification.create({
+            receiverId: user._id,
+            type: "system",
+            title: "Profile Updated",
+            body: `You have successfully updated your profile.`,
+            isRead: false,
+          });
+        }
+
+        return handlers.response.success({
+          res,
+          message: "Profile updated successfully",
+          data: user,
+        });
       } else {
         return handlers.response.error({
           res,
@@ -354,7 +471,15 @@ class Service {
         });
       }
 
-      const model = role === "admin" ? this.admin : this.employee;
+      const model =
+        role === "admin"
+          ? this.admin
+          : role === "employee"
+          ? this.employee
+          : role === "laboratory"
+          ? this.laboratory
+          : handlers.response.unauthorized({ res, message: "Invalid role" });
+
       const user = await model.findOne({ email });
 
       if (!user) {
@@ -398,7 +523,15 @@ class Service {
         });
       }
 
-      const model = role === "admin" ? this.admin : this.employee;
+      const model =
+        role === "admin"
+          ? this.admin
+          : role === "employee"
+          ? this.employee
+          : role === "laboratory"
+          ? this.laboratory
+          : handlers.response.unauthorized({ res, message: "Invalid role" });
+
       const user = await model.findOne({ email });
 
       if (!user) {
@@ -436,7 +569,15 @@ class Service {
         });
       }
 
-      const model = role === "admin" ? this.admin : this.employee;
+      const model =
+        role === "admin"
+          ? this.admin
+          : role === "employee"
+          ? this.employee
+          : role === "laboratory"
+          ? this.laboratory
+          : handlers.response.unauthorized({ res, message: "Invalid role" });
+
       const user = await model.findById(userId);
 
       if (!user) {

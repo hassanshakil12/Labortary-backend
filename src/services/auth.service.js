@@ -7,6 +7,7 @@ class Service {
   constructor() {
     this.employee = require("../models/Employee.model");
     this.admin = require("../models/Admin.model");
+    this.laboratory = require("../models/Laboratory.model");
   }
 
   async signIn(req, res) {
@@ -22,9 +23,11 @@ class Service {
       let user = await this.employee.findOne({ email });
 
       if (!user) {
+        user = await this.laboratory.findOne({ email });
+      }
+      if (!user) {
         user = await this.admin.findOne({ email });
       }
-
       if (!user) {
         return handlers.response.unavailable({
           res,
@@ -69,22 +72,35 @@ class Service {
 
   async signOut(req, res) {
     try {
-      if (!req.user) {
+      const user = req.user;
+      if (
+        !user._id ||
+        !user.userAuthToken ||
+        !["admin", "employee", "laboratory"].includes(user.role) ||
+        user.userAuthToken !== req.headers.authorization
+      ) {
         return handlers.response.unauthorized({
           res,
           message: "Unauthorized access...",
         });
       }
 
-      req.user.userAuthToken = null;
-      await req.user.save();
+      user.userAuthToken = null;
+      await user.save();
+
+      if (user.userAuthToken) {
+        return handlers.response.error({
+          res,
+          message: "Failed to logout...",
+        });
+      }
 
       return handlers.response.success({
         res,
         message: "Logout successful...",
       });
     } catch (error) {
-      handlers.logger.failed({ objectType: "API", message: error.message });
+      handlers.logger.failed({ message: error.message });
       return handlers.response.failed({
         res,
         message: error.message,

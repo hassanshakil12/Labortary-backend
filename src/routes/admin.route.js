@@ -103,5 +103,26 @@ router.get(
   userAuthentication,
   controller.getTotalEarningsOfCurrentMonth.bind(controller)
 );
+router.post(
+  "/add-laboratory",
+  userAuthentication,
+  upload.fields([{ name: "image", maxCount: 1 }]),
+  controller.createLaboratory.bind(controller)
+);
+router.get(
+  "/get-laboratories",
+  userAuthentication,
+  controller.getLaboratories.bind(controller)
+);
+router.get(
+  "/get-laboratory/:laboratoryId",
+  userAuthentication,
+  controller.getLaboratoryById.bind(controller)
+);
+router.post(
+  "/delete-laboratory/:laboratoryId",
+  userAuthentication,
+  controller.deleteLaboratory.bind(controller)
+);
 
 module.exports = router;

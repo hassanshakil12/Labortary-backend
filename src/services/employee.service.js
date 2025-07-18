@@ -18,11 +18,67 @@ class Service {
         });
       }
 
+      const page = parseInt(req.query.page) || 1;
+      const limit = 15;
+      const skip = (page - 1) * limit;
+
+      const labortary = req.query.labortary || null;
+      const sortOrder = req.query.sortOrder || -1;
+      const sortFields = req.query.sortFields || "createdAt";
+      const status = req.query.status || null;
+      const priorityLevel = req.query.priorityLevel || null;
+      const dateAndTime = req.query.dateAndTime || null;
+
+      if (status && !["Pending", "Completed", "Rejected"].includes(status)) {
+        return handlers.response.error({ res, message: "Invalid status" });
+      }
+
+      if (
+        priorityLevel &&
+        !["Urgent", "High", "Medium", "Low"].includes(priorityLevel)
+      ) {
+        return handlers.response.error({
+          res,
+          message: "Invalid Priority Level",
+        });
+      }
+
+      let dateFilter = {};
+      if (dateAndTime) {
+        const inputDate = new Date(dateAndTime);
+
+        const hasTime =
+          inputDate.getUTCHours() > 0 ||
+          inputDate.getUTCMinutes() > 0 ||
+          inputDate.getUTCSeconds() > 0 ||
+          inputDate.getUTCMilliseconds() > 0;
+
+        if (hasTime) {
+          // If time is present, match from that exact time onward
+          dateFilter.appointmentDateTime = { $gte: inputDate };
+        } else {
+          // If only date is provided, match the whole day
+          dateFilter.appointmentDateTime = {
+            $gte: new Date(inputDate.setUTCHours(0, 0, 0, 0)),
+            $lt: new Date(inputDate.setUTCHours(24, 0, 0, 0)),
+          };
+        }
+      }
+
+      const total = await this.appointment.countDocuments();
       const appointments = await this.appointment
         .find({
+          labortary: labortary ? labortary : { $exists: true },
+          status: status ? status : { $exists: true },
+          priorityLevel: priorityLevel ? priorityLevel : { $exists: true },
+          ...dateFilter,
           employeeId: req.user._id,
         })
-        .populate("employeeId");
+        .populate("employeeId")
+        .skip(skip)
+        .limit(limit)
+        .sort({ [sortFields]: sortOrder > -1 ? 1 : -1 })
+        .collation({ locale: "en", strength: 1, caseFirst: "off" });
 
       if (!appointments) {
         return handlers.response.unavailable({
@@ -34,7 +90,14 @@ class Service {
       return handlers.response.success({
         res,
         message: "Appointments retrieved successfully",
-        data: appointments,
+        data: {
+          totalAppointments: total,
+          totalPages: Math.ceil(total / limit),
+          currentPage: page,
+          hasNextPage: page * limit < total,
+          hasPreviousPage: page > 1,
+          appointments,
+        },
       });
     } catch (error) {
       handlers.logger.failed({ message: error.message });
@@ -88,14 +151,76 @@ class Service {
         });
       }
 
-      const archivedAppointments = await this.appointment
-        .find({
-          employeeId: user._id,
-          status: "completed",
-        })
-        .populate("employeeId");
+      const page = parseInt(req.query.page) || 1;
+      const limit = 15;
+      const skip = (page - 1) * limit;
 
-      if (!archivedAppointments) {
+      const labortary = req.query.labortary || null;
+      const sortOrder = req.query.sortOrder || -1;
+      const sortFields = req.query.sortFields || "createdAt";
+      const status = req.query.status || null;
+      const priorityLevel = req.query.priorityLevel || null;
+      const dateAndTime = req.query.dateAndTime || null;
+
+      if (status && !["Completed", "Rejected"].includes(status)) {
+        return handlers.response.error({ res, message: "Invalid status" });
+      }
+
+      if (
+        priorityLevel &&
+        !["Urgent", "High", "Medium", "Low"].includes(priorityLevel)
+      ) {
+        return handlers.response.error({
+          res,
+          message: "Invalid Priority Level",
+        });
+      }
+
+      let dateFilter = {};
+      if (dateAndTime) {
+        const inputDate = new Date(dateAndTime);
+
+        const hasTime =
+          inputDate.getUTCHours() > 0 ||
+          inputDate.getUTCMinutes() > 0 ||
+          inputDate.getUTCSeconds() > 0 ||
+          inputDate.getUTCMilliseconds() > 0;
+
+        if (hasTime) {
+          // If time is present, match from that exact time onward
+          dateFilter.appointmentDateTime = { $gte: inputDate };
+        } else {
+          // If only date is provided, match the whole day
+          dateFilter.appointmentDateTime = {
+            $gte: new Date(inputDate.setUTCHours(0, 0, 0, 0)),
+            $lt: new Date(inputDate.setUTCHours(24, 0, 0, 0)),
+          };
+        }
+      }
+
+      const total = await this.appointment.countDocuments();
+      const query = {
+        employeeId: user._id,
+        ...(labortary && { labortary }),
+        ...(priorityLevel && { priorityLevel }),
+        ...(dateFilter || {}),
+      };
+
+      if (status) {
+        query.status = status;
+      } else {
+        query.status = { $in: ["Completed", "Rejected"] };
+      }
+
+      const appointments = await this.appointment
+        .find(query)
+        .populate("employeeId")
+        .skip(skip)
+        .limit(limit)
+        .sort({ [sortFields]: sortOrder > -1 ? 1 : -1 })
+        .collation({ locale: "en", strength: 1, caseFirst: "off" });
+
+      if (!appointments) {
         return handlers.response.unavailable({
           res,
           message: "No archived appointments found",
@@ -105,7 +230,14 @@ class Service {
       return handlers.response.success({
         res,
         message: "Archived appointments retrieved successfully",
-        data: archivedAppointments,
+        data: {
+          totalAppointments: total,
+          totalPages: Math.ceil(total / limit),
+          currentPage: page,
+          hasNextPage: page * limit < total,
+          hasPreviousPage: page > 1,
+          appointments,
+        },
       });
     } catch (error) {
       handlers.logger.failed({ message: error.message });

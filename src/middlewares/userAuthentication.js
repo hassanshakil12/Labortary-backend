@@ -1,7 +1,8 @@
 const { handlers } = require("../utils/handlers");
 const jwt = require("jsonwebtoken");
-const Employee = require("../models/Employee.model");
-const Admin = require("../models/Admin.model");
+const employee = require("../models/Employee.model");
+const admin = require("../models/Admin.model");
+const laboratory = require("../models/Laboratory.model");
 
 const userAuthentication = async (req, res, next) => {
   try {
@@ -18,16 +19,24 @@ const userAuthentication = async (req, res, next) => {
       : userAuthToken;
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const model =
+      decoded.role === "employee"
+        ? employee
+        : decoded.role === "admin"
+        ? admin
+        : decoded.role === "laboratory"
+        ? laboratory
+        : handlers.logger.failed({ message: "Invalid role in token..." });
 
-    let user = await Employee.findOne({ _id: decoded._id });
+    let user = await model.findOne({
+      _id: decoded._id,
+      role: decoded.role,
+    });
     if (!user) {
-      user = await Admin.findOne({ _id: decoded._id });
-      if (!user) {
-        return handlers.response.unavailable({
-          res,
-          message: "User not found...",
-        });
-      }
+      return handlers.response.unavailable({
+        res,
+        message: "User not found...",
+      });
     }
 
     req.user = user;

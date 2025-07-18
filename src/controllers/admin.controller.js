@@ -78,6 +78,22 @@ class Controller {
   async getTotalEarningsOfCurrentMonth(req, res) {
     await this.service.getTotalEarningsOfCurrentMonth(req, res);
   }
+
+  async createLaboratory(req, res) {
+    await this.service.createLaboratory(req, res);
+  }
+
+  async getLaboratories(req, res) {
+    await this.service.getLaboratories(req, res);
+  }
+
+  async getLaboratoryById(req, res) {
+    await this.service.getLaboratoryById(req, res);
+  }
+
+  async deleteLaboratory(req, res) {
+    await this.service.deleteLaboratory(req, res);
+  }
 }
 
 module.exports = new Controller();

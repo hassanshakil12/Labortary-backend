@@ -7,6 +7,7 @@ class Service {
     this.employee = require("../models/Employee.model");
     this.appointment = require("../models/Appointment.model");
     this.notification = require("../models/Notification.model");
+    this.laboratory = require("../models/Laboratory.model");
   }
 
   async getAppointments(req, res) {
@@ -28,6 +29,15 @@ class Service {
       const status = req.query.status || null;
       const priorityLevel = req.query.priorityLevel || null;
       const dateAndTime = req.query.dateAndTime || null;
+      const tracking = req.query.tracking || null;
+
+      // Validations
+      if (tracking && !["True", "False"].includes(tracking)) {
+        return handlers.response.error({
+          res,
+          message: "Invalid tracking status",
+        });
+      }
 
       if (status && !["Pending", "Completed", "Rejected"].includes(status)) {
         return handlers.response.error({ res, message: "Invalid status" });
@@ -73,6 +83,11 @@ class Service {
           priorityLevel: priorityLevel ? priorityLevel : { $exists: true },
           ...dateFilter,
           employeeId: req.user._id,
+          ...(tracking === "True"
+            ? { trackingId: { $exists: true, $ne: null } }
+            : tracking === "False"
+            ? { $or: [{ trackingId: null }, { trackingId: "" }] }
+            : {}),
         })
         .populate("employeeId")
         .skip(skip)
@@ -459,6 +474,38 @@ class Service {
         res,
         message: "Tracking Id uploaded successfully",
         data: appointment,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({ res, message: error.message });
+    }
+  }
+
+  async getLaboratories(req, res) {
+    try {
+      const user = req.user;
+      if (!user || user.role !== "employee") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only employees can access",
+        });
+      }
+
+      const laboratories = await this.laboratory
+        .find()
+        .select("-password -__v -userAuthToken -forgotPasswordOTP")
+        .sort({ createdAt: -1 });
+      if (!laboratories || laboratories.length === 0) {
+        return handlers.response.unavailable({
+          res,
+          message: "No laboratories found",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Laboratories retrieved successfully",
+        data: laboratories,
       });
     } catch (error) {
       handlers.logger.failed({ message: error.message });

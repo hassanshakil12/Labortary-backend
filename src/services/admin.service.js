@@ -422,6 +422,7 @@ class Service {
         });
       }
       const appointment = await this.appointment.create({
+        createdBy: req.user.role,
         image,
         patientName: patientName,
         email: email.toLowerCase(),
@@ -522,12 +523,29 @@ class Service {
       const skip = (page - 1) * limit;
 
       const labortary = req.query.labortary || null;
-      const sortOrder = req.query.sortOrder || -1;
+      const sortOrder = parseInt(req.query.sortOrder) || -1;
       const sortFields = req.query.sortFields || "createdAt";
       const status = req.query.status || null;
       const priorityLevel = req.query.priorityLevel || null;
       const dateAndTime = req.query.dateAndTime || null;
       const employeeId = req.query.employeeId || null;
+      const tracking = req.query.tracking || null;
+      const assigned = req.query.assigned || null;
+
+      // Validations
+      if (assigned && !["True", "False"].includes(assigned)) {
+        return handlers.response.error({
+          res,
+          message: "Invalid assigned status",
+        });
+      }
+
+      if (tracking && !["True", "False"].includes(tracking)) {
+        return handlers.response.error({
+          res,
+          message: "Invalid tracking status",
+        });
+      }
 
       if (status && !["Pending", "Completed", "Rejected"].includes(status)) {
         return handlers.response.error({ res, message: "Invalid status" });
@@ -545,12 +563,25 @@ class Service {
 
       let employee = null;
       if (employeeId) {
-        employee = await this.employee.findOne({ employeeId });
+        employee = await this.employee.findOne({ _id: employeeId }); // ❗ Fixed field name
+        if (!employee) {
+          return handlers.response.error({
+            res,
+            message: "Employee not found",
+          });
+        }
       }
 
+      // Handle Date Filter
       let dateFilter = {};
       if (dateAndTime) {
         const inputDate = new Date(dateAndTime);
+        if (isNaN(inputDate.getTime())) {
+          return handlers.response.error({
+            res,
+            message: "Invalid dateAndTime format",
+          });
+        }
 
         const hasTime =
           inputDate.getUTCHours() > 0 ||
@@ -559,26 +590,44 @@ class Service {
           inputDate.getUTCMilliseconds() > 0;
 
         if (hasTime) {
-          // If time is present, match from that exact time onward
           dateFilter.appointmentDateTime = { $gte: inputDate };
         } else {
-          // If only date is provided, match the whole day
+          const start = new Date(inputDate);
+          start.setUTCHours(0, 0, 0, 0);
+
+          const end = new Date(inputDate);
+          end.setUTCHours(23, 59, 59, 999);
+
           dateFilter.appointmentDateTime = {
-            $gte: new Date(inputDate.setUTCHours(0, 0, 0, 0)),
-            $lt: new Date(inputDate.setUTCHours(24, 0, 0, 0)),
+            $gte: start,
+            $lte: end,
           };
         }
       }
 
-      const total = await this.appointment.countDocuments();
+      // Build query
+      const query = {
+        ...(labortary ? { labortary } : {}),
+        ...(status ? { status } : {}),
+        ...(priorityLevel ? { priorityLevel } : {}),
+        ...(employee ? { employeeId: employee._id } : {}),
+        ...dateFilter,
+        ...(tracking === "True"
+          ? { trackingId: { $exists: true, $ne: null } }
+          : tracking === "False"
+          ? { $or: [{ trackingId: null }, { trackingId: "" }] }
+          : {}),
+        ...(assigned === "True"
+          ? { employeeId: { $exists: true, $ne: null } }
+          : assigned === "False"
+          ? { employeeId: null }
+          : {}),
+      };
+
+      const total = await this.appointment.countDocuments(query);
+
       const appointments = await this.appointment
-        .find({
-          labortary: labortary ? labortary : { $exists: true },
-          status: status ? status : { $exists: true },
-          priorityLevel: priorityLevel ? priorityLevel : { $exists: true },
-          ...dateFilter,
-          employeeId: employee ? employee._id : { $exists: true },
-        })
+        .find(query)
         .populate("employeeId")
         .skip(skip)
         .limit(limit)
@@ -655,32 +704,40 @@ class Service {
       const { appointmentId } = req.params;
       const { status } = req.body;
 
-      if (!appointmentId) {
+      if (!appointmentId || !mongoose.Types.ObjectId.isValid(appointmentId)) {
         return handlers.response.error({
           res,
           message: "Appointment ID is required",
         });
       }
 
-      if (!["completed", "pending", "rejected"].includes(status)) {
+      if (!status || !["Completed", "Pending", "Rejected"].includes(status)) {
         return handlers.response.error({
           res,
           message:
-            "Invalid status. Allowed values are: completed, pending, rejected",
+            "Invalid status. Allowed values are: Completed, Pending, Rejected",
         });
       }
 
-      const appointment = await this.appointment.findByIdAndUpdate(
-        appointmentId,
-        { status },
-        { new: true }
-      );
+      const appointment = await this.appointment.findOne({
+        _id: appointmentId,
+      });
       if (!appointment) {
         return handlers.response.unavailable({
           res,
           message: "Appointment not found",
         });
       }
+
+      if (status !== "Pending" && !appointment.employeeId) {
+        return handlers.response.error({
+          res,
+          message: "Can't change the status as No Employee is assigned",
+        });
+      }
+
+      appointment.status = status.trim();
+      await appointment.save();
 
       return handlers.response.success({
         res,
@@ -693,6 +750,125 @@ class Service {
         res,
         message: error.message,
       });
+    }
+  }
+
+  async assignEmployeeToAppointment(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id || user.role !== "admin") {
+        return handlers.response.unauthorized({
+          res,
+          mesasge: "Only admin can access",
+        });
+      }
+
+      const { appointmentId } = req.params;
+      const { employeeId } = req.body;
+
+      if (!employeeId || !mongoose.Types.ObjectId.isValid(employeeId)) {
+        return handlers.response.error({
+          res,
+          message: "Employee ID is required",
+        });
+      }
+
+      if (!appointmentId || !mongoose.Types.ObjectId.isValid(appointmentId)) {
+        return handlers.response.error({
+          res,
+          message: "Appointment ID is required",
+        });
+      }
+
+      const employee = await this.employee.findOne({
+        _id: employeeId,
+        role: "employee",
+      });
+      if (!employee) {
+        return handlers.response.unavailable({
+          res,
+          message: "Employee not found",
+        });
+      }
+
+      const appointment = await this.appointment.findOneAndUpdate({
+        _id: appointmentId,
+        createdBy: "laboratory",
+      });
+      if (!appointment) {
+        return handlers.response.unavailable({
+          res,
+          message: "Appointment not found",
+        });
+      }
+
+      const laboratory = await this.laboratory
+        .findOne({
+          _id: appointment.laboratoryId,
+          role: "laboratory",
+        })
+        .select("email");
+      if (!laboratory) {
+        return handlers.response.unavailable({
+          res,
+          message: "Laboratory not found",
+        });
+      }
+
+      if (
+        !appointment?.appointmentDateTime ||
+        appointment.appointmentDateTime < new Date()
+      ) {
+        return handlers.response.error({
+          res,
+          message: "Appointment date and time has already passed",
+        });
+      }
+
+      appointment.employeeId = employee._id;
+      await appointment.save();
+
+      if (employee.isNotification) {
+        await this.notification.create({
+          receiverId: employee._id,
+          AdminId: user._id,
+          type: "appointment",
+          title: "New Appointment Assigned",
+          body: `You have been assigned to an appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime}.`,
+          isRead: false,
+        });
+
+        await this.notification.create({
+          receiverId: laboratory._id,
+          AdminId: user._id,
+          type: "appointment",
+          title: "Appointment Assigned Successfully",
+          body: `Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.`,
+          isRead: false,
+        });
+      }
+
+      await Promise.all([
+        sendEmail(
+          employee.email,
+          "New Appointment Assigned",
+          `You have been assigned to an appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime}.`
+        ),
+        sendEmail(
+          laboratory.email,
+          "Appointment Assigned Successfully",
+          `Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.`
+        ),
+      ]);
+
+      return handlers.response.success({
+        res,
+        message: "Appointment assigned successfully",
+        data: appointment,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({ res, message: error.message });
     }
   }
 

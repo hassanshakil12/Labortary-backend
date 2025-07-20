@@ -30,5 +30,9 @@ class Controller {
   async uploadTrackingId(req, res) {
     await this.service.uploadTrackingId(req, res);
   }
+
+  async getLaboratories(req, res) {
+    await this.service.getLaboratories(req, res);
+  }
 }
 module.exports = new Controller();

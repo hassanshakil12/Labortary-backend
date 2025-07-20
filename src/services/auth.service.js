@@ -76,9 +76,9 @@ class Service {
       if (
         !user._id ||
         !user.userAuthToken ||
-        !["admin", "employee", "laboratory"].includes(user.role) ||
-        user.userAuthToken !== req.headers.authorization
+        !["admin", "employee", "laboratory"].includes(user.role)
       ) {
+        console.log("Unauthorized access attempt");
         return handlers.response.unauthorized({
           res,
           message: "Unauthorized access...",
@@ -89,6 +89,7 @@ class Service {
       await user.save();
 
       if (user.userAuthToken) {
+        console.log("Failed to logout");
         return handlers.response.error({
           res,
           message: "Failed to logout...",

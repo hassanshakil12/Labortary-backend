@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { handlers } = require("../utils/handlers");
+const sendEmail = require("../config/nodemailer");
 
 class Service {
   constructor() {
@@ -7,6 +8,8 @@ class Service {
     this.employee = require("../models/Employee.model");
     this.appointment = require("../models/Appointment.model");
     this.transaction = require("../models/Transaction.model");
+    this.admin = require("../models/Admin.model");
+    this.notification = require("../models/Notification.model");
   }
 
   async getAppointments(req, res) {
@@ -29,6 +32,22 @@ class Service {
       const status = req.query.status || null;
       const priorityLevel = req.query.priorityLevel || null;
       const dateAndTime = req.query.dateAndTime || null;
+      const tracking = req.query.tracking || null;
+      const assigned = req.query.assigned || null;
+
+      if (assigned && !["True", "False"].includes(assigned)) {
+        return handlers.response.error({
+          res,
+          message: "Invalid assigned status",
+        });
+      }
+
+      if (tracking && !["True", "False"].includes(tracking)) {
+        return handlers.response.error({
+          res,
+          message: "Invalid tracking status",
+        });
+      }
 
       let employee = null;
       if (employeeId) {
@@ -94,6 +113,16 @@ class Service {
           priorityLevel: priorityLevel ? priorityLevel : { $exists: true },
           ...dateFilter,
           labortary: user.fullName,
+          ...(tracking === "True"
+            ? { trackingId: { $exists: true, $ne: null } }
+            : tracking === "False"
+            ? { $or: [{ trackingId: null }, { trackingId: "" }] }
+            : {}),
+          ...(assigned === "True"
+            ? { employeeId: { $exists: true, $ne: null } }
+            : assigned === "False"
+            ? { employeeId: null }
+            : {}),
         })
         .populate(
           "employeeId",
@@ -358,13 +387,13 @@ class Service {
       const endOfToday = new Date();
       endOfToday.setHours(23, 59, 59, 999);
 
-      const appointments = await this.laboratory.aggregate([
+      const appointments = await this.appointment.aggregate([
         {
           $match: {
-            employeeId: new mongoose.Types.ObjectId(user._id),
+            laboratoryId: new mongoose.Types.ObjectId(user._id),
             appointmentDateTime: {
               $gte: startOfToday,
-              $lt: endOfToday,
+              $lte: endOfToday,
             },
           },
         },
@@ -391,14 +420,17 @@ class Service {
         },
         {
           $lookup: {
-            from: "laboratories", // collection name, not model name
-            localField: "laboratoryId",
+            from: "employees",
+            localField: "employeeId",
             foreignField: "_id",
-            as: "laboratoryData",
+            as: "employee",
           },
         },
         {
-          $unwind: "$laboratoryData",
+          $unwind: {
+            path: "$employee",
+            preserveNullAndEmptyArrays: true,
+          },
         },
       ]);
 
@@ -623,6 +655,249 @@ class Service {
             topLaboratories: filteredTopLaboratories,
           },
         },
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({ res, message: error.message });
+    }
+  }
+
+  async createAppointment(req, res) {
+    try {
+      if (!req.user || req.user.role !== "laboratory") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Unauthorized access",
+        });
+      }
+
+      const {
+        patientName,
+        email,
+        contactNumber,
+        address,
+        gender,
+        fees,
+        priorityLevel,
+        status,
+        specialInstructions,
+        accountNumber,
+        age,
+      } = req.body;
+      const appointmentDateTime = new Date(req.body.appointmentDateTime);
+      const dateOfBirth = new Date(req.body.dateOfBirth);
+
+      if (
+        !patientName ||
+        !email ||
+        !contactNumber ||
+        !address ||
+        !dateOfBirth ||
+        !appointmentDateTime ||
+        !age
+      ) {
+        return handlers.response.error({
+          res,
+          message: "Required fields are missing.",
+        });
+      }
+
+      // Validate user inputs
+      if (!/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(email)) {
+        return handlers.response.error({
+          res,
+          message: "Invalid email format.",
+        });
+      } else if (!/^\+?[1-9]\d{1,14}$/.test(contactNumber)) {
+        return handlers.response.error({
+          res,
+          message: "Invalid contact number format.",
+        });
+      } else if (isNaN(appointmentDateTime.getTime())) {
+        return handlers.response.error({
+          res,
+          message: "Invalid or past appointment date/time",
+        });
+      } else if (isNaN(age) || age < 0) {
+        return handlers.response.error({
+          res,
+          message: "Invalid age. Age must be a number.",
+        });
+      } else if (address && address.trim().length < 5) {
+        return handlers.response.error({
+          res,
+          message: "Address must be at least 5 characters long.",
+        });
+      } else if (!["Urgent", "High", "Medium", "Low"].includes(priorityLevel)) {
+        return handlers.response.error({
+          res,
+          message:
+            "Invalid Priority Level. Allowed values are: Urgent, High, Medium, Low",
+        });
+      } else if (!["Pending", "Completed", "Rejected"].includes(status)) {
+        return handlers.response.error({
+          res,
+          message:
+            "Invalid Status. Allowed values are: Pending, Completed, Rejected",
+        });
+      } else if (
+        !(dateOfBirth instanceof Date) ||
+        isNaN(dateOfBirth.getTime()) ||
+        dateOfBirth > new Date()
+      ) {
+        return handlers.response.error({
+          res,
+          message: "Invalid date of birth.",
+        });
+      } else if (fees) {
+        if (isNaN(fees) || fees < 0) {
+          return handlers.response.error({
+            res,
+            message: "Invalid fees. Fees must be a non-negative number.",
+          });
+        }
+      } else if (
+        fees > 0 &&
+        (!accountNumber || !/^\d{10}$/.test(accountNumber))
+      ) {
+        return handlers.response.error({
+          res,
+          message:
+            "Account number is required and must be a 10-digit string when fees > 0",
+        });
+      }
+
+      let image = null;
+      if (req.files?.image?.[0]) {
+        const file = req.files.image[0];
+        const folder = file.uploadFolder;
+        const filename = file.savedFilename;
+        image = `uploads/${folder}/${filename}`.replace(/\\/g, "/");
+      }
+
+      let documents = [];
+      if (req.files?.documents?.length > 0) {
+        documents = req.files.documents.map((file) => {
+          const folder = file.uploadFolder;
+          const filename = file.savedFilename;
+          return `uploads/${folder}/${filename}`.replace(/\\/g, "/");
+        });
+      }
+      const appointment = await this.appointment.create({
+        createdBy: req.user.role,
+        image,
+        patientName: patientName,
+        email: email.toLowerCase(),
+        contactNumber,
+        address,
+        dateOfBirth,
+        gender,
+        employeeId: null,
+        labortary: req.user.fullName,
+        laboratoryId: req.user._id,
+        fees,
+        priorityLevel,
+        appointmentDateTime: new Date(appointmentDateTime),
+        status,
+        specialInstructions: specialInstructions.trim(),
+        documents,
+        age,
+        accountNumber,
+      });
+
+      const transaction = await this.transaction.create({
+        appointmentId: appointment._id,
+        laboratoryId: req.user._id,
+        accountNumber,
+        patientName,
+        dateAndTime: new Date(appointmentDateTime),
+        amount: fees,
+      });
+      if (!transaction) {
+        return handlers.response.error({
+          res,
+          message: "Failed to create transaction.",
+        });
+      }
+
+      const admin = await this.admin.findOne({ role: "admin" });
+      if (!admin) {
+        return handlers.response.unavailable({
+          res,
+          message: "Admin not found",
+        });
+      }
+
+      if (appointment) {
+        if (admin.isNotification) {
+          await this.notification.create({
+            receiverId: admin._id,
+            AdminId: admin._id,
+            type: "appointment",
+            title: "Assign Employee",
+            body: `New appointment created by ${req.user.fullName} for ${patientName} at ${appointmentDateTime}, Kindly assign an employee to this appointment with ID: ${appointment._id}.`,
+            isRead: false,
+          });
+        }
+
+        await Promise.all([
+          sendEmail(
+            req.user.email,
+            "New Appointment Created",
+            `New Appointment Just Added to the system`
+          ),
+          sendEmail(
+            email,
+            "New Appointment",
+            `You appointment for ${req.user.fullName} has been created at All Mobile Phlebotomy Services.`
+          ),
+          sendEmail(
+            admin.email,
+            "Assign Employee",
+            `New appointment created by ${req.user.fullName} for ${patientName} at ${appointmentDateTime}, Kindly assign an employee to this appointment with ID: ${appointment._id}.`
+          ),
+        ]);
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Appointment created successfully.",
+        data: appointment,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({
+        res,
+        message: error.message,
+      });
+    }
+  }
+
+  async getEmployees(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id || user.role !== "laboratory") {
+        return handlers.response.unauthorized({
+          res,
+          message: "Only laboratory can access",
+        });
+      }
+
+      const employees = await this.employee
+        .find()
+        .select("-password -userAuthToken -__v -forgotPasswordOTP");
+
+      if (!employees || employees.length === 0) {
+        return handlers.response.unavailable({
+          res,
+          message: "No employees found",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Employees retrieved successfully",
+        data: employees,
       });
     } catch (error) {
       handlers.logger.failed({ message: error.message });

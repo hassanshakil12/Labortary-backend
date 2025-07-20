@@ -31,6 +31,10 @@ class Controller {
     await this.service.updateAppointmentStatus(req, res);
   }
 
+  async assignEmployeeToAppointment(req, res) {
+    await this.service.assignEmployeeToAppointment(req, res);
+  }
+
   async getArchivedAppointments(req, res) {
     await this.service.getArchivedAppointments(req, res);
   }

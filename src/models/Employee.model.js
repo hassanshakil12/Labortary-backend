@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { validate } = require("./Admin.model");
 
 const capitalizeName = (name) => {
   if (!name) return "";

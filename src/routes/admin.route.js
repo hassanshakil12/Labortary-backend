@@ -43,6 +43,11 @@ router.post(
   userAuthentication,
   controller.updateAppointmentStatus.bind(controller)
 );
+router.post(
+  "/assign-appointment/:appointmentId",
+  userAuthentication,
+  controller.assignEmployeeToAppointment.bind(controller)
+);
 router.get(
   "/get-archeived",
   userAuthentication,

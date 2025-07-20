@@ -38,5 +38,19 @@ router.get(
   userAuthentication,
   controller.getDashboard.bind(controller)
 );
+router.post(
+  "/add-appointment",
+  userAuthentication,
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "documents", maxCount: 10 },
+  ]),
+  controller.createAppointment.bind(controller)
+);
+router.get(
+  "/get-employees",
+  userAuthentication,
+  controller.getEmployees.bind(controller)
+);
 
 module.exports = router;

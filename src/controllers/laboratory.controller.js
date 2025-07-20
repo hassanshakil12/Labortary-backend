@@ -30,6 +30,14 @@ class Controller {
   async getDashboard(req, res) {
     await this.service.getDashboard(req, res);
   }
+
+  async createAppointment(req, res) {
+    await this.service.createAppointment(req, res);
+  }
+
+  async getEmployees(req, res) {
+    await this.service.getEmployees(req, res);
+  }
 }
 
 module.exports = new Controller();

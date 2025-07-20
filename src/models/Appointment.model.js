@@ -13,6 +13,13 @@ const capitalizeName = (name) => {
 
 const appointmentSchema = new mongoose.Schema(
   {
+    createdBy: {
+      type: String,
+      required: [true, "Created by is required"],
+      trim: true,
+      enum: ["admin", "laboratory"],
+      default: "admin",
+    },
     image: {
       type: String,
       default: null,
@@ -67,8 +74,16 @@ const appointmentSchema = new mongoose.Schema(
     employeeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",
-      required: [true, "Employee ID is required"],
+      validate: {
+        validator: function (v) {
+          if (this.createdBy === "admin") {
+            return !!v;
+          }
+        },
+        message: "Employee ID is required when created by admin",
+      },
     },
+
     labortary: {
       type: String,
       required: [true, "Laboratory is required"],

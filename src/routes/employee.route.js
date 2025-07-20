@@ -39,5 +39,10 @@ router.post(
   upload.fields([{ name: "image", maxCount: 1 }]),
   controller.uploadTrackingId.bind(controller)
 );
+router.get(
+  "/get-laboratories",
+  userAuthentication,
+  controller.getLaboratories.bind(controller)
+);
 
 module.exports = router;

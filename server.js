@@ -7,6 +7,7 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const compression = require("compression");
 const bcrypt = require("bcrypt");
+const rateLimit = require("express-rate-limit");
 
 const { handlers } = require("./src/utils/handlers");
 const connectDB = require("./src/config/mongodb");
@@ -46,8 +47,7 @@ app.use(morgan(process.env.NODE_ENV === "development" ? "dev" : "combined"));
 
 app.use(
   cors({
-    origin: "*",
-    // origin: ["https://allmobileportal.com", "https://www.allmobileportal.com"],
+    origin: ["https://allmobileportal.com", "https://www.allmobileportal.com"],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   })
@@ -66,6 +66,19 @@ app.use(
   })
 );
 
+const apiRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: {
+    success: false,
+    message:
+      "Too many requests from this IP, please try again after 15 minutes",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(apiRateLimiter);
 app.use(require("./src/routes/index"));
 
 const adminSeeder = async () => {

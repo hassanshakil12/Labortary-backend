@@ -759,12 +759,12 @@ class Service {
         }
       } else if (
         fees > 0 &&
-        (!accountNumber || !/^\d{10}$/.test(accountNumber))
+        (!accountNumber || !/^\d{17, 34}$/.test(accountNumber))
       ) {
         return handlers.response.error({
           res,
           message:
-            "Account number is required and must be a 10-digit string when fees > 0",
+            "Account number is required and must be a 17 to 34 digit string when fees > 0",
         });
       }
 

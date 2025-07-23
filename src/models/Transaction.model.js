@@ -26,9 +26,11 @@ const transactionSchema = new mongoose.Schema(
       trim: true,
       validate: {
         validator: function (v) {
-          return v === null || (typeof v === "string" && /^\d{10}$/.test(v));
+          return (
+            v === null || (typeof v === "string" && /^\d{17, 34}$/.test(v))
+          );
         },
-        message: "Account number must be a 10-digit string or null",
+        message: "Account number must be a 17 to 34 digit string or null",
       },
     },
     patientName: {

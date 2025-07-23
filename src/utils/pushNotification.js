@@ -9,10 +9,16 @@ const sendNotification = async ({ token, title, body, data = {} }) => {
 
   try {
     const response = await admin.messaging().send(message);
-    console.log("✅ Notification sent:", response);
+    handlers.logger.success({
+      message: "Notification sent successfully",
+      data: response,
+    });
     return { success: true, response };
   } catch (error) {
-    console.error("❌ Notification error:", error);
+    handlers.logger.error({
+      message: "Failed to send notification",
+      data: error,
+    });
     return { success: false, error };
   }
 };

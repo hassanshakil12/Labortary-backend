@@ -375,14 +375,11 @@ class Service {
           res,
           message: "Invalid employee Id",
         });
-      } else if (
-        fees > 0 &&
-        (!accountNumber || !/^\d{10}$/.test(accountNumber))
-      ) {
+      } else if (fees > 0 && (!accountNumber || !/^\d{17,34}$/.test(accountNumber))) {
         return handlers.response.error({
           res,
           message:
-            "Account number is required and must be a 10-digit string when fees > 0",
+            "Account number is required and must be a 17 to 34-digit string when fees > 0",
         });
       }
 
@@ -1713,8 +1710,6 @@ class Service {
       if (typeof timings === "string") {
         try {
           timings = JSON.parse(timings);
-          console.log(typeof timings);
-          console.log("Parsed timings:", timings);
         } catch (error) {
           return handlers.response.error({
             res,
@@ -1810,8 +1805,6 @@ class Service {
 
       // Handling image file uploading
       let image = null;
-      console.log("req.files:", req.files);
-
       if (req.files?.image?.[0]) {
         const file = req.files.image[0];
         if (file.uploadFolder && file.savedFilename) {

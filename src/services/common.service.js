@@ -349,8 +349,6 @@ class Service {
         if (typeof timings === "string") {
           try {
             timings = JSON.parse(timings);
-            console.log(typeof timings);
-            console.log("Parsed timings:", timings);
           } catch (error) {
             return handlers.response.error({
               res,
@@ -708,7 +706,10 @@ class Service {
   async generateFcmToken(req, res) {
     try {
       const user = req.user;
-      if (!user._id) {
+      if (
+        !user._id ||
+        !["admin", "employee", "laboratory"].includes(user.role)
+      ) {
         return handlers.response.unauthorized({
           res,
           message: "Unauthorized User",
@@ -716,6 +717,12 @@ class Service {
       }
 
       const { fcmToken } = req.body;
+      if (!fcmToken) {
+        return handlers.response.error({
+          res,
+          message: "FCM token is required",
+        });
+      }
 
       user.userFCMToken = fcmToken;
       await user.save();

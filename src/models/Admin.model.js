@@ -42,6 +42,8 @@ const adminSchema = new mongoose.Schema(
     },
     userAuthToken: {
       type: String,
+      default: null,
+      trim: true,
     },
     userFCMToken: {
       type: String,

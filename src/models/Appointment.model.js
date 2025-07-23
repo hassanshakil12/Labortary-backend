@@ -142,12 +142,12 @@ const appointmentSchema = new mongoose.Schema(
       validate: {
         validator: function (v) {
           if (this.fees > 0) {
-            return typeof v === "string" && /^\d{10}$/.test(v);
+            return typeof v === "string" && /^\d{17,34}$/.test(v);
           }
           return true;
         },
         message:
-          "Account number is required and must be a 10-digit string when fees > 0",
+          "Account number is required and must be a 17 to 34-digit string when fees > 0",
       },
       set: (v) => (v ? v.trim() : v),
     },

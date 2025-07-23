@@ -75,15 +75,6 @@ class Service {
         html: `<p>Hello ${user.fullName},</p><p>You have successfully logged in.</p>`,
       });
 
-      if (user.userFCMToken && user.isNotification) {
-        await sendNotification({
-          token: user.userFCMToken,
-          title: "Login Notification",
-          body: `Hello ${user.fullName}, you have successfully logged in.`,
-          data: { type: "alert" },
-        });
-      }
-
       return handlers.response.success({
         res,
         message: "Login successful...",
@@ -110,7 +101,6 @@ class Service {
         !user.userAuthToken ||
         !["admin", "employee", "laboratory"].includes(user.role)
       ) {
-        console.log("Unauthorized access attempt");
         return handlers.response.unauthorized({
           res,
           message: "Unauthorized access...",
@@ -121,7 +111,6 @@ class Service {
       await user.save();
 
       if (user.userAuthToken) {
-        console.log("Failed to logout");
         return handlers.response.error({
           res,
           message: "Failed to logout...",

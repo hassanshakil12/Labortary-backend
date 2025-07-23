@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const sendEmail = require("../config/nodemailer");
 const { generateOTP } = require("../utils/generators");
+const admin = require("../config/firebaseAdmin");
+const { sendNotification } = require("../utils/pushNotification");
 
 class Service {
   constructor() {
@@ -12,10 +14,13 @@ class Service {
     this.laboratory = require("../models/Laboratory.model");
   }
 
-  async getNoifications(req, res) {
+  async getNotifications(req, res) {
     try {
       const user = req.user;
-      if (!user._id) {
+      if (
+        !user._id ||
+        !["admin", "employee", "laboratory"].includes(user.role)
+      ) {
         return handlers.response.unauthorized({
           res,
           message: "Unauthorized User",
@@ -34,10 +39,59 @@ class Service {
         });
       }
 
+      if (notifications && notifications.length > 0) {
+        notifications.forEach(async (notification) => {
+          notification.isRead == true;
+          await notification.save();
+        });
+      }
+
       return handlers.response.success({
         res,
         message: "Notifications retrieved successfully",
         data: notifications,
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({ res, message: error.message });
+    }
+  }
+
+  async readNotifications(req, res) {
+    try {
+      const user = req.user;
+      if (
+        !user._id ||
+        !["admin", "employee", "laboratory"].includes(user.role)
+      ) {
+        return handlers.response.unauthorized({
+          res,
+          message: "Unauthorized User",
+        });
+      }
+
+      const { notifications } = req.body;
+      if (!notifications || !Array.isArray(notifications)) {
+        return handlers.response.error({
+          res,
+          message: "Notifications must be an array",
+        });
+      }
+
+      const updatedNotifications = await this.notification.updateMany(
+        { isRead: false, _id: { $in: notifications }, receiverId: user._id },
+        { isRead: true }
+      );
+      if (updatedNotifications.modifiedCount === 0) {
+        return handlers.response.unavailable({
+          res,
+          message: "No notifications found to update",
+        });
+      }
+
+      return handlers.response.success({
+        res,
+        message: "Notifications marked as read successfully",
       });
     } catch (error) {
       handlers.logger.failed({ message: error.message });
@@ -193,15 +247,13 @@ class Service {
         user.image = image;
         await user.save();
 
-        if (user.isNotification) {
-          await this.notification.create({
-            receiverId: user._id,
-            type: "system",
-            title: "Profile Updated",
-            body: `You have successfully updated your profile.`,
-            isRead: false,
-          });
-        }
+        await this.notification.create({
+          receiverId: user._id,
+          type: "system",
+          title: "Profile Updated",
+          body: `You have successfully updated your profile.`,
+          isRead: false,
+        });
 
         return handlers.response.success({
           res,
@@ -440,15 +492,30 @@ class Service {
       user.password = hashedPassword;
       await user.save();
 
-      if (user.isNotification) {
-        await this.notification.create({
-          receiverId: user._id,
-          type: "system",
+      await this.notification.create({
+        receiverId: user._id,
+        type: "system",
+        title: "Password Updated",
+        body: `You have successfully updated your account password at ${new Date()}.`,
+        isRead: false,
+      });
+
+      if (user.userFCMToken && user.isNotification) {
+        await sendNotification({
+          token: user.userFCMToken,
           title: "Password Updated",
-          body: `You have successfully updated your accoount pasword at ${new Date()}.`,
-          isRead: false,
+          body: `You have successfully updated your account password at ${new Date()}.`,
+          data: { type: "system" },
         });
       }
+
+      await sendEmail(
+        user.email,
+        "Password Changed Successfully",
+        "Your password has been changed successfully.",
+        `<p>Dear ${user.fullName},</p>
+         <p>Your password has been changed successfully.</p>`
+      );
 
       return handlers.response.success({
         res,
@@ -587,24 +654,76 @@ class Service {
         });
       }
 
+      if (user.userFCMToken && user.isNotification) {
+        await sendNotification({
+          token: user.userFCMToken,
+          title: "Login Notification",
+          body: `Hello ${user.fullName}, you have successfully logged in.`,
+          data: { type: "alert" },
+        });
+      }
+
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       user.password = hashedPassword;
       user.forgetPasswordOTP = null;
       await user.save();
 
-      if (user.isNotification) {
-        await this.notification.create({
-          receiverId: user._id,
-          type: "system",
-          title: "Password Reset",
-          body: `You have successfully reset your password at ${new Date()}.`,
-          isRead: false,
+      await this.notification.create({
+        receiverId: user._id,
+        type: "system",
+        title: "Password Updated",
+        body: `You have successfully updated your account password at ${new Date()}.`,
+        isRead: false,
+      });
+
+      if (user.userFCMToken && user.isNotification) {
+        await sendNotification({
+          token: user.userFCMToken,
+          title: "Password Updated",
+          body: `You have successfully updated your account password at ${new Date()}.`,
+          data: { type: "system" },
         });
       }
+
+      await sendEmail(
+        user.email,
+        "Forget Password OTP",
+        "Here is the OTP to reset your password",
+        `<p>Dear ${user.fullName},</p>
+         <p>Your OTP for resetting your password is: <strong>${otp}</strong></p>
+         <p>Please use this OTP to reset your password.</p>
+         <p>Thank you,</p>`
+      );
 
       return handlers.response.success({
         res,
         message: "Password reset successfully",
+      });
+    } catch (error) {
+      handlers.logger.failed({ message: error.message });
+      return handlers.response.failed({ res, message: error.message });
+    }
+  }
+
+  async generateFcmToken(req, res) {
+    try {
+      const user = req.user;
+      if (!user._id) {
+        return handlers.response.unauthorized({
+          res,
+          message: "Unauthorized User",
+        });
+      }
+
+      const { fcmToken } = req.body;
+
+      user.userFCMToken = fcmToken;
+      await user.save();
+
+      return handlers.response.success({
+        res,
+        message: "FCM token saved successfully",
+        data: user.userFCMToken,
       });
     } catch (error) {
       handlers.logger.failed({ message: error.message });

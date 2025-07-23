@@ -3,8 +3,12 @@ class Controller {
     this.service = require("../services/common.service");
   }
 
-  async getNoifications(req, res) {
-    await this.service.getNoifications(req, res);
+  async getNotifications(req, res) {
+    await this.service.getNotifications(req, res);
+  }
+
+  async readNotifications(req, res) {
+    await this.service.readNotifications(req, res);
   }
 
   async deleteNotifications(req, res) {
@@ -37,6 +41,10 @@ class Controller {
 
   async resetPassword(req, res) {
     await this.service.resetPassword(req, res);
+  }
+
+  async generateFcmToken(req, res) {
+    await this.service.generateFcmToken(req, res);
   }
 }
 module.exports = new Controller();

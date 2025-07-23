@@ -719,9 +719,12 @@ class Service {
         });
       }
 
-      const appointment = await this.appointment.findOne({
-        _id: appointmentId,
-      });
+      const appointment = await this.appointment
+        .findOne({
+          _id: appointmentId,
+        })
+        .populate("employeeId", "fullName email userFCMToken isNotification")
+        .populate("laboratoryId", "fullName email userFCMToken isNotification");
       if (!appointment) {
         return handlers.response.unavailable({
           res,
@@ -738,6 +741,83 @@ class Service {
 
       appointment.status = status.trim();
       await appointment.save();
+
+      await this.notification.create({
+        receiverId: req.user._id,
+        type: "system",
+        title: "Appointment Status Updated",
+        body: `You have successfully updated the status of appointment with ID: ${appointment._id} for ${appointment.patientName} to ${status}. This appointment was handled by ${appointment.employeeId.fullName} for ${appointment.laboratoryId?.fullName}.`,
+        isRead: false,
+      });
+
+      await this.notification.create({
+        receiverId: appointment.employeeId?._id,
+        type: "system",
+        title: "Appointment Status Updated",
+        body: `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.laboratoryId?.fullName}.`,
+        isRead: false,
+      });
+
+      await this.notification.create({
+        receiverId: appointment.laboratoryId?._id,
+        type: "system",
+        title: "Appointment Status Updated",
+        body: `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was handled by ${appointment.employeeId.fullName}`,
+        isRead: false,
+      });
+
+      if (req.user.userFCMToken && req.user.isNotification) {
+        await sendNotification({
+          token: req.user.userFCMToken,
+          title: "Appointment Status Updated",
+          body: `You have successfully updated the status of appointment with ID: ${appointment._id} for ${appointment.patientName} to ${status}. This appointment was handled by ${appointment.employeeId.fullName} for ${appointment.laboratoryId?.fullName}.`,
+          data: { type: "system" },
+        });
+      }
+
+      if (
+        appointment.employeeId?.userFCMToken &&
+        appointment.employeeId?.isNotification
+      ) {
+        await sendNotification({
+          token: appointment.employeeId?.userFCMToken,
+          title: "Appointment Status Updated",
+          body: `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.laboratoryId?.fullName}.`,
+          data: { type: "system" },
+        });
+      }
+
+      if (
+        appointment.laboratoryId?.userFCMToken &&
+        appointment.laboratoryId?.isNotification
+      ) {
+        await sendNotification({
+          token: appointment.laboratoryId?.userFCMToken,
+          title: "Appointment Status Updated",
+          body: `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was handled by ${appointment.employeeId.fullName}`,
+          data: { type: "system" },
+        });
+      }
+
+      await Promise.all([
+        sendEmail(
+          req.user.email,
+          "Appointment Status Updated",
+          `You have successfully updated the status of appointment with ID: ${appointment._id} for ${appointment.patientName} to ${status}. This appointment was handled by ${appointment.employeeId.fullName} for ${appointment.labortary}.`
+        ),
+
+        sendEmail(
+          appointment.employeeId?.email,
+          "Appointment Status Updated",
+          `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.labortary}.`
+        ),
+
+        sendEmail(
+          appointment.laboratoryId?.email,
+          "Appointment Status Updated",
+          `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was handled by ${appointment.employeeId.fullName}`
+        ),
+      ]);
 
       return handlers.response.success({
         res,
@@ -828,36 +908,74 @@ class Service {
       appointment.employeeId = employee._id;
       await appointment.save();
 
-      if (employee.isNotification) {
-        await this.notification.create({
-          receiverId: employee._id,
-          AdminId: user._id,
-          type: "appointment",
-          title: "New Appointment Assigned",
-          body: `You have been assigned to an appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime}.`,
-          isRead: false,
-        });
+      await this.notification.create({
+        receiverId: user._id,
+        type: "system",
+        title: "Appointment Assigned",
+        body: `You have successfully assigned then appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} to ${employee.fullName} having Employee ID: ${employee.employeeId}. This appointment is booked for ${appointment.labortary}.`,
+        isRead: false,
+      });
 
-        await this.notification.create({
-          receiverId: laboratory._id,
-          AdminId: user._id,
-          type: "appointment",
+      await this.notification.create({
+        receiverId: laboratory._id,
+        type: "system",
+        title: "Appointment Assigned Successfully",
+        body: `Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.`,
+        isRead: false,
+      });
+
+      await this.notification.create({
+        receiverId: employee._id,
+        type: "system",
+        title: "New Appointment Assigned",
+        body: `You have been assigned to an appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime}.`,
+        isRead: false,
+      });
+
+      if (user.userFCMToken && user.isNotification) {
+        await sendNotification({
+          token: user.userFCMToken,
+          title: "Appointment Assigned",
+          body: `You have successfully assigned then appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} to ${employee.fullName} having Employee ID: ${employee.employeeId}. This appointment is booked for ${appointment.labortary}.`,
+          data: { type: "system" },
+        });
+      }
+
+      if (laboratory.userFCMToken && laboratory.isNotification) {
+        await sendNotification({
+          token: laboratory.userFCMToken,
           title: "Appointment Assigned Successfully",
           body: `Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.`,
-          isRead: false,
+          data: { type: "system" },
+        });
+      }
+
+      if (employee.userFCMToken && employee.isNotification) {
+        await sendNotification({
+          token: employee.userFCMToken,
+          title: "New Appointment Assigned",
+          body: `You have been assigned to an appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime}.`,
+          data: { type: "system" },
         });
       }
 
       await Promise.all([
         sendEmail(
-          employee.email,
-          "New Appointment Assigned",
-          `You have been assigned to an appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime}.`
+          user.email,
+          "Appointment Assigned",
+          `You have successfully assigned then appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} to ${employee.fullName} having Employee ID: ${employee.employeeId}. This appointment is booked for ${appointment.labortary}.`
         ),
+
         sendEmail(
           laboratory.email,
           "Appointment Assigned Successfully",
           `Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.`
+        ),
+
+        sendEmail(
+          appointment.employeeId?.email,
+          "New Appointment Assigned",
+          `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.labortary}.`
         ),
       ]);
 
@@ -1220,6 +1338,45 @@ class Service {
         });
       }
 
+      await this.notification.create({
+        receiverId: user._id,
+        type: "system",
+        title: "Employee Deleted",
+        body: `You have successfully deleted the employee ${employee.fullName} having Employee ID: ${employee.employeeId}.`,
+        isRead: false,
+      });
+
+      if (user.userFCMToken && user.isNotification) {
+        await sendNotification({
+          token: user.userFCMToken,
+          title: "Employee Deleted",
+          body: `You have successfully deleted the employee ${employee.fullName} having Employee ID: ${employee.employeeId}.`,
+          data: { type: "system" },
+        });
+      }
+
+      if (employee.userFCMToken && employee.isNotification) {
+        await sendNotification({
+          token: employee.userFCMToken,
+          title: "Removed from All Mobile Phlebotomy Services",
+          body: `As an employee you are removed by the admin from All Mobile Phlebotomy Services.`,
+          data: { type: "system" },
+        });
+      }
+
+      await Promise.all([
+        sendEmail(
+          user.email,
+          "Employee Deleted",
+          `You have successfully deleted the employee ${employee.fullName} having Employee ID: ${employee.employeeId}.`
+        ),
+        sendEmail(
+          laboratory.email,
+          "Removed from All Mobile Phlebotomy Services",
+          `As an employee you are removed by the admin from All Mobile Phlebotomy Services.`
+        ),
+      ]);
+
       return handlers.response.success({
         res,
         message: "Employee deleted successfully",
@@ -1345,17 +1502,67 @@ class Service {
         });
       }
 
-      const transaction = await this.transaction.findByIdAndUpdate(
-        transactionId,
-        { status },
-        { new: true }
-      );
+      const transaction = await this.transaction
+        .findByIdAndUpdate(transactionId, { status }, { new: true })
+        .populate("appointmentId", "patientName appointmentDateTime")
+        .populate("laboratoryId", "fullName email userFCMToken isNotification");
       if (!transaction) {
         return handlers.response.unavailable({
           res,
           message: "Transaction not found",
         });
       }
+
+      await this.notification.create({
+        receiverId: user._id,
+        type: "system",
+        title: "Payment Status Updated",
+        body: `You have updated the payment status for appointment of ${transaction.appointmentId.patientName} with appointment ID: ${transaction.appointmentId._id} to ${status}. This appointment was booked for ${transaction.laboratoryId?.fullName} at ${transaction.appointmentId?.appointmentDateTime}.`,
+        isRead: false,
+      });
+
+      await this.notification.create({
+        receiverId: transaction.laboratoryId?._id,
+        type: "system",
+        title: "Payment Status Updated",
+        body: `Payment status for your appointment of ${transaction.appointmentId.patientName} with appointment ID: ${transaction.appointmentId} has been updated to ${status}. You booked this appointment at ${transaction.appointmentId?.appointmentDateTime}.`,
+        isRead: false,
+      });
+
+      if (user.userFCMToken && user.isNotification) {
+        await sendNotification({
+          token: user.userFCMToken,
+          title: "Payment Status Updated",
+          body: `You have updated the payment status for appointment of ${transaction.appointmentId.patientName} with appointment ID: ${transaction.appointmentId._id} to ${status}. This appointment was booked for ${transaction.laboratoryId?.fullName} at ${transaction.appointmentId?.appointmentDateTime}.`,
+          data: { type: "system" },
+        });
+      }
+
+      if (
+        transaction.laboratoryId?.userFCMToken &&
+        transaction.laboratoryId?.isNotification
+      ) {
+        await sendNotification({
+          token: transaction.laboratoryId?.userFCMToken,
+          title: "Payment Status Updated",
+          body: `Payment status for your appointment of ${transaction.appointmentId.patientName} with appointment ID: ${transaction.appointmentId} has been updated to ${status}. You booked this appointment at ${transaction.appointmentId?.appointmentDateTime}.`,
+          data: { type: "system" },
+        });
+      }
+
+      await Promise.all([
+        sendEmail(
+          user.email,
+          "Payment Status Updated",
+          `You have updated the payment status for appointment of ${transaction.appointmentId.patientName} with appointment ID: ${transaction.appointmentId._id} to ${status}. This appointment was booked for ${transaction.laboratoryId?.fullName} at ${transaction.appointmentId?.appointmentDateTime}.`
+        ),
+
+        sendEmail(
+          transaction.laboratoryId?.email,
+          "Payment Status Updated",
+          `Payment status for your appointment of ${transaction.appointmentId.patientName} with appointment ID: ${transaction.appointmentId} has been updated to ${status}. You booked this appointment at ${transaction.appointmentId?.appointmentDateTime}.`
+        ),
+      ]);
 
       return handlers.response.success({
         res,
@@ -1829,37 +2036,44 @@ class Service {
         });
       }
 
-      if (laboratory) {
-        await this.notification.create({
-          receiverId: user._id,
-          AdminId: user._id,
-          type: "system",
-          title: "Laboratory Deleted",
-          body: `A laboratory "${laboratory.fullName}" has been deleted from the system.`,
-          isRead: false,
-        });
+      await this.notification.create({
+        receiverId: user._id,
+        type: "system",
+        title: "Laboratory Deleted",
+        body: `You have successfully deleted the laboratory ${laboratory.fullName} having laboratory ID: ${laboratory._id}.`,
+        isRead: false,
+      });
 
-        await Promise.all([
-          sendEmail(
-            user.email,
-            "Laboratory Deleted from System",
-            `Laboratory ${laboratory.fullName} has been deleted`,
-            `
-          <h3>Laboratory Deleted</h3>
-          <p><strong>Name:</strong> ${laboratory.fullName}</p>
-          <p><strong>Email:</strong> ${laboratory.email}</p>
-          <p><strong>Contact:</strong> ${laboratory.contactNumber}</p>
-          <p><strong>Address:</strong> ${laboratory.address}</p>
-        `
-          ),
-          sendEmail(
-            laboratory.email,
-            "Removed from All Mobile Phlebotomy Services.",
-            `You are deleted from All Mobile Phlebotomy Services`,
-            `<p>${laboratory.fullName} has been deleted from All Mobile Phlebotomy Services.</p>`
-          ),
-        ]);
+      if (user.userFCMToken && user.isNotification) {
+        await sendNotification({
+          token: user.userFCMToken,
+          title: "Laboratory Deleted",
+          body: `You have successfully deleted the laboratory ${laboratory.fullName} having laboratory ID: ${laboratory._id}.`,
+          data: { type: "system" },
+        });
       }
+
+      if (laboratory.userFCMToken && laboratory.isNotification) {
+        await sendNotification({
+          token: laboratory.userFCMToken,
+          title: "Removed from All Mobile Phlebotomy Services",
+          body: `As a laboratory you are removed by the admin from All Mobile Phlebotomy Services.`,
+          data: { type: "system" },
+        });
+      }
+
+      await Promise.all([
+        sendEmail(
+          user.email,
+          "Laboratory Deleted",
+          `You have successfully deleted the laboratory ${laboratory.fullName} having laboratory ID: ${laboratory._id}.`
+        ),
+        sendEmail(
+          laboratory.email,
+          "Removed from All Mobile Phlebotomy Services",
+          `As a laboratory you are removed by the admin from All Mobile Phlebotomy Services.`
+        ),
+      ]);
 
       return handlers.response.success({
         res,

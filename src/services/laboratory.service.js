@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const { handlers } = require("../utils/handlers");
 const sendEmail = require("../config/nodemailer");
+const { sendNotification } = require("../utils/pushNotification");
 
 class Service {
   constructor() {
@@ -829,14 +830,45 @@ class Service {
       }
 
       if (appointment) {
-        if (admin.isNotification) {
-          await this.notification.create({
-            receiverId: admin._id,
-            AdminId: admin._id,
-            type: "appointment",
+        const admin = await this.admin.findOne();
+        if (!admin) {
+          handlers.logger.unavailable({
+            res,
+            message: "Admin not found",
+          });
+        }
+
+        await this.notification.create({
+          receiverId: req.user._id,
+          type: "system",
+          title: "New Appointment Created",
+          body: `You have successfully created an appointment with ID: ${appointment._id} for ${patientName} at ${appointmentDateTime}.`,
+          isRead: false,
+        });
+
+        await this.notification.create({
+          receiverId: admin._id,
+          type: "system",
+          title: "Assign Employee",
+          body: `New appointment created by ${req.user.fullName} for ${patientName} at ${appointmentDateTime}, Kindly assign an employee to this appointment with ID: ${appointment._id}.`,
+          isRead: false,
+        });
+
+        if (req.user.userFCMToken && req.user.isNotification) {
+          await sendNotification({
+            token: req.user.userFCMToken,
+            title: "New Appointment Created",
+            body: `You have successfully created an appointment with ID: ${appointment._id} for ${patientName} at ${appointmentDateTime}.`,
+            data: { type: "system" },
+          });
+        }
+
+        if (admin.userFCMToken && admin.isNotification) {
+          await sendNotification({
+            token: admin.userFCMToken,
             title: "Assign Employee",
             body: `New appointment created by ${req.user.fullName} for ${patientName} at ${appointmentDateTime}, Kindly assign an employee to this appointment with ID: ${appointment._id}.`,
-            isRead: false,
+            data: { type: "system" },
           });
         }
 
@@ -844,13 +876,9 @@ class Service {
           sendEmail(
             req.user.email,
             "New Appointment Created",
-            `New Appointment Just Added to the system`
+            `You have successfully created an appointment with ID: ${appointment._id} for ${patientName} at ${appointmentDateTime}.`
           ),
-          sendEmail(
-            email,
-            "New Appointment",
-            `You appointment for ${req.user.fullName} has been created at All Mobile Phlebotomy Services.`
-          ),
+
           sendEmail(
             admin.email,
             "Assign Employee",

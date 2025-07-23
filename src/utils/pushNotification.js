@@ -1,50 +1,20 @@
-const firebaseAdmin = require("../config/firebaseAdmin");
-const { handlers } = require("./handlers");
+const admin = require("firebase-admin");
 
-export const sendPushNotification = async ({
-  token,
-  title,
-  body,
-  data = {},
-}) => {
-  if (!token) {
-    console.warn("No device token provided for push notification.");
-    return;
-  }
-
+const sendNotification = async ({ token, title, body, data = {} }) => {
   const message = {
+    notification: { title, body },
     token,
-    notification: {
-      title,
-      body,
-    },
-    data: {
-      ...data,
-    },
+    data,
   };
 
   try {
-    const response = await firebaseAdmin.messaging().send(message);
-    handlers.logger.info({ message: `Push notification sent: ${response}` });
-    return { success: true, messageId: response };
+    const response = await admin.messaging().send(message);
+    console.log("✅ Notification sent:", response);
+    return { success: true, response };
   } catch (error) {
-    handlers.logger.failed({
-      message: `Push notification error: ${error.message}`,
-    });
-
-    // Robust error logging
-    if (error.code === "messaging/invalid-argument") {
-      handlers.logger.error({ message: "→ Invalid token or message format." });
-    } else if (error.code === "messaging/registration-token-not-registered") {
-      handlers.logger.error({
-        message: "→ Token is no longer valid. Remove it from DB.",
-      });
-    } else {
-      handlers.logger.error({
-        message: "→ Unknown error while sending notification.",
-      });
-    }
-
-    return { success: false, error: error.message };
+    console.error("❌ Notification error:", error);
+    return { success: false, error };
   }
 };
+
+module.exports = { sendNotification };

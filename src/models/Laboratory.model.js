@@ -131,6 +131,11 @@ const schema = new mongoose.Schema(
       default: null,
       trim: true,
     },
+    userFCMToken: {
+      type: String,
+      default: null,
+      trim: true,
+    },
   },
   { timestamps: true }
 );

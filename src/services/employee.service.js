@@ -8,6 +8,7 @@ class Service {
     this.appointment = require("../models/Appointment.model");
     this.notification = require("../models/Notification.model");
     this.laboratory = require("../models/Laboratory.model");
+    this.admin = require("../models/Admin.model");
   }
 
   async getAppointments(req, res) {
@@ -444,7 +445,9 @@ class Service {
         });
       }
 
-      const appointment = await this.appointment.findById(appointmentId);
+      const appointment = await this.appointment
+        .findById(appointmentId)
+        .populate("laboratoryId", "fullName");
       if (!appointment) {
         return handlers.response.unavailable({
           res,
@@ -469,6 +472,61 @@ class Service {
 
       appointment.trackingId = image || appointment.trackingId;
       await appointment.save();
+
+      const admin = await this.admin.findOne();
+      if (!admin) {
+        handlers.logger.unavailable({
+          res,
+          message: "Admin not found",
+        });
+      }
+
+      await this.notification.create({
+        receiverId: user._id,
+        type: "system",
+        title: "Uploaded Tracking Id",
+        body: `You have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.laboratoryId.fullName}.`,
+        isRead: false,
+      });
+
+      await this.notification.create({
+        receiverId: admin._id,
+        type: "system",
+        title: "Uploaded Tracking Id",
+        body: `${user.fullName} with Employee Id: ${user.employeeId} have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.laboratoryId.fullName}.`,
+        isRead: false,
+      });
+
+      if (user.userFCMToken && user.isNotification) {
+        await sendNotification({
+          token: user.userFCMToken,
+          title: "Uploaded Tracking Id",
+          body: `You have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.laboratoryId.fullName}.`,
+          data: { type: "system" },
+        });
+      }
+
+      if (admin.userFCMToken && admin.isNotification) {
+        await sendNotification({
+          token: admin.userFCMToken,
+          title: "Uploaded Tracking Id",
+          body: `${user.fullName} with Employee Id: ${user.employeeId} have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.laboratoryId.fullName}.`,
+          data: { type: "system" },
+        });
+      }
+
+      await Promise.all([
+        sendEmail(
+          user.email,
+          "Uploaded Tracking Id",
+          "You have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.laboratoryId.fullName}."
+        ),
+        sendEmail(
+          admin.email,
+          "Uploaded Tracking Id",
+          `${user.fullName} with Employee Id: ${user.employeeId} have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.laboratoryId.fullName}.`
+        ),
+      ]);
 
       return handlers.response.success({
         res,

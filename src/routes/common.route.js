@@ -6,7 +6,12 @@ const upload = require("../middlewares/multer");
 router.get(
   "/get-notifications",
   userAuthentication,
-  controller.getNoifications.bind(controller)
+  controller.getNotifications.bind(controller)
+);
+router.post(
+  "/read-notifications",
+  userAuthentication,
+  controller.readNotifications.bind(controller)
 );
 router.post(
   "/delete-notifications",
@@ -37,5 +42,10 @@ router.post(
 router.post("/forgot-password", controller.forgetPassword.bind(controller));
 router.post("/verify-otp", controller.verifyForgetPasswordOTP.bind(controller));
 router.post("/reset-password", controller.resetPassword.bind(controller));
+router.post(
+  "/generate-fcm",
+  userAuthentication,
+  controller.generateFcmToken.bind(controller)
+);
 
 module.exports = router;

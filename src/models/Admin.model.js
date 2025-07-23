@@ -43,6 +43,11 @@ const adminSchema = new mongoose.Schema(
     userAuthToken: {
       type: String,
     },
+    userFCMToken: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     isActive: {
       type: Boolean,
       default: true,

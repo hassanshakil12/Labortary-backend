@@ -114,6 +114,11 @@ const employeeSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
+    userFCMToken: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     isActive: {
       type: Boolean,
       default: true,

@@ -1,6 +1,8 @@
 const { handlers } = require("../utils/handlers");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
+const { sendNotification } = require("../utils/pushNotification");
+const sendEmail = require("../config/nodemailer");
 
 class Service {
   constructor() {
@@ -445,9 +447,7 @@ class Service {
         });
       }
 
-      const appointment = await this.appointment
-        .findById(appointmentId)
-        .populate("laboratoryId", "fullName");
+      const appointment = await this.appointment.findById(appointmentId);
       if (!appointment) {
         return handlers.response.unavailable({
           res,
@@ -485,7 +485,7 @@ class Service {
         receiverId: user._id,
         type: "system",
         title: "Uploaded Tracking Id",
-        body: `You have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.laboratoryId.fullName}.`,
+        body: `You have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.labortary}.`,
         isRead: false,
       });
 
@@ -493,7 +493,7 @@ class Service {
         receiverId: admin._id,
         type: "system",
         title: "Uploaded Tracking Id",
-        body: `${user.fullName} with Employee Id: ${user.employeeId} have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.laboratoryId.fullName}.`,
+        body: `${user.fullName} with Employee Id: ${user.employeeId} have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.labortary}.`,
         isRead: false,
       });
 
@@ -501,7 +501,7 @@ class Service {
         await sendNotification({
           token: user.userFCMToken,
           title: "Uploaded Tracking Id",
-          body: `You have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.laboratoryId.fullName}.`,
+          body: `You have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.labortary}.`,
           data: { type: "system" },
         });
       }
@@ -510,7 +510,7 @@ class Service {
         await sendNotification({
           token: admin.userFCMToken,
           title: "Uploaded Tracking Id",
-          body: `${user.fullName} with Employee Id: ${user.employeeId} have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.laboratoryId.fullName}.`,
+          body: `${user.fullName} with Employee Id: ${user.employeeId} have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.labortary}.`,
           data: { type: "system" },
         });
       }
@@ -519,12 +519,12 @@ class Service {
         sendEmail(
           user.email,
           "Uploaded Tracking Id",
-          "You have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.laboratoryId.fullName}."
+          "You have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.labortary}."
         ),
         sendEmail(
           admin.email,
           "Uploaded Tracking Id",
-          `${user.fullName} with Employee Id: ${user.employeeId} have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.laboratoryId.fullName}.`
+          `${user.fullName} with Employee Id: ${user.employeeId} have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.labortary}.`
         ),
       ]);
 

@@ -759,7 +759,7 @@ class Service {
         }
       } else if (
         fees > 0 &&
-        (!accountNumber || !/^\d{17, 34}$/.test(accountNumber))
+        (!accountNumber || !/^\d{17,34}$/.test(accountNumber))
       ) {
         return handlers.response.error({
           res,

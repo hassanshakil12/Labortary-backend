@@ -1,4 +1,5 @@
 const admin = require("firebase-admin");
+const { handlers } = require("./handlers");
 
 const sendNotification = async ({ token, title, body, data = {} }) => {
   const message = {

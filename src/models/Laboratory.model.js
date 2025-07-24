@@ -136,6 +136,21 @@ const schema = new mongoose.Schema(
       default: null,
       trim: true,
     },
+
+    lastUserAgent: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    lastIP: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    isAccountActivated: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

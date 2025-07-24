@@ -147,6 +147,20 @@ const employeeSchema = new mongoose.Schema(
         message: "OTP must be a 6-digit integer or null",
       },
     },
+    lastUserAgent: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    lastIP: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    isAccountActivated: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

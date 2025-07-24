@@ -334,7 +334,7 @@ class Service {
           message: "Profile updated successfully",
           data: user,
         });
-      } else if (user.role === "laboraotry") {
+      } else if (user.role === "laboratory") {
         const { fullName, email, contactNumber, address, username, about } =
           req.body;
         let { timings } = req.body;

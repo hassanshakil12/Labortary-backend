@@ -876,13 +876,15 @@ class Service {
           sendEmail(
             req.user.email,
             "New Appointment Created",
-            `You have successfully created an appointment with ID: ${appointment._id} for ${patientName} at ${appointmentDateTime}.`
+            `You have successfully created an appointment with ID: ${appointment._id} for ${patientName} at ${appointmentDateTime}.`,
+            `<p>You have successfully created an appointment with ID: ${appointment._id} for ${patientName} at ${appointmentDateTime}.</p>`
           ),
 
           sendEmail(
             admin.email,
             "Assign Employee",
-            `New appointment created by ${req.user.fullName} for ${patientName} at ${appointmentDateTime}, Kindly assign an employee to this appointment with ID: ${appointment._id}.`
+            `New appointment created by ${req.user.fullName} for ${patientName} at ${appointmentDateTime}, Kindly assign an employee to this appointment with ID: ${appointment._id}.`,
+            `<p>New appointment created by ${req.user.fullName} for ${patientName} at ${appointmentDateTime}, Kindly assign an employee to this appointment with ID: ${appointment._id}.</p>`
           ),
         ]);
       }

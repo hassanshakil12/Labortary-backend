@@ -40,16 +40,6 @@ const adminSchema = new mongoose.Schema(
     image: {
       type: String,
     },
-    userAuthToken: {
-      type: String,
-      default: null,
-      trim: true,
-    },
-    userFCMToken: {
-      type: String,
-      default: null,
-      trim: true,
-    },
     isActive: {
       type: Boolean,
       default: true,
@@ -77,6 +67,30 @@ const adminSchema = new mongoose.Schema(
     },
     forgetPasswordOTP: {
       type: Number,
+    },
+    userAuthToken: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    userFCMToken: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    lastUserAgent: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    lastIP: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    isAccountActivated: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }

@@ -32,10 +32,10 @@ const userAuthentication = async (req, res, next) => {
       _id: decoded._id,
       role: decoded.role,
     });
-    if (!user) {
-      return handlers.response.unavailable({
+    if (!user || user.userAuthToken !== token) {
+      return handlers.response.unauthorized({
         res,
-        message: "User not found...",
+        message: "Unauthorized access. Please log in again.",
       });
     }
 
@@ -44,7 +44,7 @@ const userAuthentication = async (req, res, next) => {
     next();
   } catch (error) {
     handlers.logger.failed({
-      objectType: "UserAuthentication",
+      objectType: "User Authentication",
       message: error.message,
     });
     return handlers.response.error({

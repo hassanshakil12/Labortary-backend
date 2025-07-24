@@ -56,7 +56,32 @@ class Service {
         });
       }
 
+      const userAgent = req.headers["user-agent"] || "Unknown device";
+      const ip = req.ip || req.headers["x-forwarded-for"] || "Unknown IP";
+
+      if (user.isAccountActivated === true) {
+        if (user.lastUserAgent !== userAgent || user.lastIP !== ip) {
+          await sendEmail({
+            to: user.email,
+            subject: "New Device Login Alert",
+            html: `
+      <p>Hello ${user.fullName},</p>
+      <p>We detected a login from a new device:</p>
+      <ul>
+        <li><strong>Device:</strong> ${userAgent}</li>
+        <li><strong>IP:</strong> ${ip}</li>
+      </ul>
+      <p>If this wasn't you, please reset your password immediately.</p>
+    `,
+          });
+        }
+      }
+
       user.userAuthToken = generateToken(user._id, user.role);
+      user.lastUserAgent = userAgent;
+      user.lastIP = ip;
+      user.isAccountActivated = true;
+      user.isActive = true;
       await user.save();
 
       this.notification.create({
@@ -108,6 +133,7 @@ class Service {
       }
 
       user.userAuthToken = null;
+      user.isActive = false;
       await user.save();
 
       if (user.userAuthToken) {

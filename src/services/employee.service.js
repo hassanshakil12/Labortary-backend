@@ -519,12 +519,14 @@ class Service {
         sendEmail(
           user.email,
           "Uploaded Tracking Id",
-          "You have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.labortary}."
+          "You have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.labortary}.",
+          `<p>You have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.labortary}.</p>`
         ),
         sendEmail(
           admin.email,
           "Uploaded Tracking Id",
-          `${user.fullName} with Employee Id: ${user.employeeId} have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.labortary}.`
+          `${user.fullName} with Employee Id: ${user.employeeId} have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.labortary}.`,
+          `<p>${user.fullName} with Employee Id: ${user.employeeId} have successfully uploaded the tracking ID for appointment ID: ${appointment._id} of ${appointment.labortary}.</p>`
         ),
       ]);
 

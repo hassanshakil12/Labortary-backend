@@ -375,7 +375,10 @@ class Service {
           res,
           message: "Invalid employee Id",
         });
-      } else if (fees > 0 && (!accountNumber || !/^\d{17,34}$/.test(accountNumber))) {
+      } else if (
+        fees > 0 &&
+        (!accountNumber || !/^\d{17,34}$/.test(accountNumber))
+      ) {
         return handlers.response.error({
           res,
           message:
@@ -473,21 +476,27 @@ class Service {
           sendEmail(
             req.user.email,
             "New Appointment Created",
-            `New Appointment Just Added to the system`
+            `New Appointment Just Added to the system``<p>New Appointment Just Added to the system</p>`
           ),
           sendEmail(
             email,
             "New Appointment",
             `You appointment for ${
               laboratoryId ? laboratory.fullName : labortary
-            } has been created at All Mobile Phlebotomy Services.`
+            } has been created at All Mobile Phlebotomy Services.`,
+            `<p>You appointment for ${
+              laboratoryId ? laboratory.fullName : labortary
+            } has been created at All Mobile Phlebotomy Services.</p>`
           ),
           sendEmail(
             employee.email,
             "New Appointment",
             `A new patient ${patientName} has been assigned to you for an appointment of ${
               laboratoryId ? laboratory.fullName : labortary
-            } at ${appointmentDateTime}. Please check your dashboard for details.`
+            } at ${appointmentDateTime}. Please check your dashboard for details.`,
+            `<p>A new patient ${patientName} has been assigned to you for an appointment of ${
+              laboratoryId ? laboratory.fullName : labortary
+            } at ${appointmentDateTime}. Please check your dashboard for details.</p>`
           ),
         ]);
       }
@@ -800,19 +809,21 @@ class Service {
         sendEmail(
           req.user.email,
           "Appointment Status Updated",
-          `You have successfully updated the status of appointment with ID: ${appointment._id} for ${appointment.patientName} to ${status}. This appointment was handled by ${appointment.employeeId.fullName} for ${appointment.labortary}.`
+          `You have successfully updated the status of appointment with ID: ${appointment._id} for ${appointment.patientName} to ${status}. This appointment was handled by ${appointment.employeeId.fullName} for ${appointment.labortary}.`,
+          `<p>You have successfully updated the status of appointment with ID: ${appointment._id} for ${appointment.patientName} to ${status}. This appointment was handled by ${appointment.employeeId.fullName} for ${appointment.labortary}.</p>`
         ),
 
         sendEmail(
           appointment.employeeId?.email,
           "Appointment Status Updated",
-          `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.labortary}.`
+          `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.labortary}.``<p>Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.labortary}.</p>`
         ),
 
         sendEmail(
           appointment.laboratoryId?.email,
           "Appointment Status Updated",
-          `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was handled by ${appointment.employeeId.fullName}`
+          `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was handled by ${appointment.employeeId.fullName}`,
+          `<p>Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was handled by ${appointment.employeeId.fullName}</p>`
         ),
       ]);
 
@@ -960,19 +971,22 @@ class Service {
         sendEmail(
           user.email,
           "Appointment Assigned",
-          `You have successfully assigned then appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} to ${employee.fullName} having Employee ID: ${employee.employeeId}. This appointment is booked for ${appointment.labortary}.`
+          `You have successfully assigned then appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} to ${employee.fullName} having Employee ID: ${employee.employeeId}. This appointment is booked for ${appointment.labortary}.`,
+          `<p>You have successfully assigned then appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} to ${employee.fullName} having Employee ID: ${employee.employeeId}. This appointment is booked for ${appointment.labortary}.</p>`
         ),
 
         sendEmail(
           laboratory.email,
           "Appointment Assigned Successfully",
-          `Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.`
+          `Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.`,
+          `<p>Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.</p>`
         ),
 
         sendEmail(
           appointment.employeeId?.email,
           "New Appointment Assigned",
-          `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.labortary}.`
+          `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.labortary}.`,
+          `<p>Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.labortary}.</p>`
         ),
       ]);
 
@@ -1365,12 +1379,14 @@ class Service {
         sendEmail(
           user.email,
           "Employee Deleted",
-          `You have successfully deleted the employee ${employee.fullName} having Employee ID: ${employee.employeeId}.`
+          `You have successfully deleted the employee ${employee.fullName} having Employee ID: ${employee.employeeId}.`,
+          `<p>You have successfully deleted the employee ${employee.fullName} having Employee ID: ${employee.employeeId}.</p>`
         ),
         sendEmail(
           laboratory.email,
           "Removed from All Mobile Phlebotomy Services",
-          `As an employee you are removed by the admin from All Mobile Phlebotomy Services.`
+          `As an employee you are removed by the admin from All Mobile Phlebotomy Services.`,
+          `<p>As an employee you are removed by the admin from All Mobile Phlebotomy Services.</p>`
         ),
       ]);
 
@@ -1551,13 +1567,15 @@ class Service {
         sendEmail(
           user.email,
           "Payment Status Updated",
-          `You have updated the payment status for appointment of ${transaction.appointmentId.patientName} with appointment ID: ${transaction.appointmentId._id} to ${status}. This appointment was booked for ${transaction.laboratoryId?.fullName} at ${transaction.appointmentId?.appointmentDateTime}.`
+          `You have updated the payment status for appointment of ${transaction.appointmentId.patientName} with appointment ID: ${transaction.appointmentId._id} to ${status}. This appointment was booked for ${transaction.laboratoryId?.fullName} at ${transaction.appointmentId?.appointmentDateTime}.`,
+          `<p>You have updated the payment status for appointment of ${transaction.appointmentId.patientName} with appointment ID: ${transaction.appointmentId._id} to ${status}. This appointment was booked for ${transaction.laboratoryId?.fullName} at ${transaction.appointmentId?.appointmentDateTime}.</p>`
         ),
 
         sendEmail(
           transaction.laboratoryId?.email,
           "Payment Status Updated",
-          `Payment status for your appointment of ${transaction.appointmentId.patientName} with appointment ID: ${transaction.appointmentId} has been updated to ${status}. You booked this appointment at ${transaction.appointmentId?.appointmentDateTime}.`
+          `Payment status for your appointment of ${transaction.appointmentId.patientName} with appointment ID: ${transaction.appointmentId} has been updated to ${status}. You booked this appointment at ${transaction.appointmentId?.appointmentDateTime}.`,
+          `<p>Payment status for your appointment of ${transaction.appointmentId.patientName} with appointment ID: ${transaction.appointmentId} has been updated to ${status}. You booked this appointment at ${transaction.appointmentId?.appointmentDateTime}.</p>`
         ),
       ]);
 
@@ -2059,12 +2077,14 @@ class Service {
         sendEmail(
           user.email,
           "Laboratory Deleted",
-          `You have successfully deleted the laboratory ${laboratory.fullName} having laboratory ID: ${laboratory._id}.`
+          `You have successfully deleted the laboratory ${laboratory.fullName} having laboratory ID: ${laboratory._id}.`,
+          `<p>You have successfully deleted the laboratory ${laboratory.fullName} having laboratory ID: ${laboratory._id}.</p>`
         ),
         sendEmail(
           laboratory.email,
           "Removed from All Mobile Phlebotomy Services",
-          `As a laboratory you are removed by the admin from All Mobile Phlebotomy Services.`
+          `As a laboratory you are removed by the admin from All Mobile Phlebotomy Services.`,
+          `<p>As a laboratory you are removed by the admin from All Mobile Phlebotomy Services.</p>`
         ),
       ]);
 

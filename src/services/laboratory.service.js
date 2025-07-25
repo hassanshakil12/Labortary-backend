@@ -917,7 +917,7 @@ class Service {
         .find()
         .select("-password -userAuthToken -__v -forgotPasswordOTP");
 
-      if (!employees || employees.length === 0) {
+      if (!employees) {
         return handlers.response.unavailable({
           res,
           message: "No employees found",

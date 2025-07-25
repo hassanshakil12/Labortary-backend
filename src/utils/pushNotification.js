@@ -14,13 +14,13 @@ const sendNotification = async ({ token, title, body, data = {} }) => {
       message: "Notification sent successfully",
       data: response,
     });
-    return { success: true, response };
+    // return { success: true, response };
   } catch (error) {
     handlers.logger.error({
       message: "Failed to send notification",
       data: error,
     });
-    return { success: false, error };
+    // return { success: false, error };
   }
 };
 

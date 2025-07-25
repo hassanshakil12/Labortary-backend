@@ -2,6 +2,7 @@ const { handlers } = require("../utils/handlers");
 const bcrypt = require("bcrypt");
 const sendEmail = require("../config/nodemailer");
 const mongoose = require("mongoose");
+const { sendNotification } = require("../utils/pushNotification");
 
 class Service {
   constructor() {
@@ -476,7 +477,8 @@ class Service {
           sendEmail(
             req.user.email,
             "New Appointment Created",
-            `New Appointment Just Added to the system``<p>New Appointment Just Added to the system</p>`
+            `New Appointment Just Added to the system`,
+            `<p>New Appointment Just Added to the system</p>`
           ),
           sendEmail(
             email,
@@ -809,14 +811,15 @@ class Service {
         sendEmail(
           req.user.email,
           "Appointment Status Updated",
-          `You have successfully updated the status of appointment with ID: ${appointment._id} for ${appointment.patientName} to ${status}. This appointment was handled by ${appointment.employeeId.fullName} for ${appointment.labortary}.`,
-          `<p>You have successfully updated the status of appointment with ID: ${appointment._id} for ${appointment.patientName} to ${status}. This appointment was handled by ${appointment.employeeId.fullName} for ${appointment.labortary}.</p>`
+          `You have successfully updated the status of appointment with ID: ${appointment._id} for ${appointment.patientName} to ${status}. This appointment was handled by ${appointment.employeeId.fullName} for ${appointment.laboratoryId?.fullName}.`,
+          `<p>You have successfully updated the status of appointment with ID: ${appointment._id} for ${appointment.patientName} to ${status}. This appointment was handled by ${appointment.employeeId.fullName} for ${appointment.laboratoryId?.fullName}.</p>`
         ),
 
         sendEmail(
           appointment.employeeId?.email,
           "Appointment Status Updated",
-          `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.labortary}.``<p>Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.labortary}.</p>`
+          `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.laboratoryId?.fullName}.`,
+          `<p>Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.laboratoryId?.fullName}.</p>`
         ),
 
         sendEmail(
@@ -881,7 +884,6 @@ class Service {
 
       const appointment = await this.appointment.findOneAndUpdate({
         _id: appointmentId,
-        createdBy: "laboratory",
       });
       if (!appointment) {
         return handlers.response.unavailable({
@@ -890,17 +892,14 @@ class Service {
         });
       }
 
-      const laboratory = await this.laboratory
+      let laboratory = await this.laboratory
         .findOne({
           _id: appointment.laboratoryId,
           role: "laboratory",
         })
         .select("email");
       if (!laboratory) {
-        return handlers.response.unavailable({
-          res,
-          message: "Laboratory not found",
-        });
+        laboratory = null;
       }
 
       if (
@@ -924,13 +923,31 @@ class Service {
         isRead: false,
       });
 
-      await this.notification.create({
-        receiverId: laboratory._id,
-        type: "system",
-        title: "Appointment Assigned Successfully",
-        body: `Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.`,
-        isRead: false,
-      });
+      if (laboratory) {
+        await this.notification.create({
+          receiverId: laboratory._id,
+          type: "system",
+          title: "Appointment Assigned Successfully",
+          body: `Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.`,
+          isRead: false,
+        });
+
+        if (laboratory.userFCMToken && laboratory.isNotification) {
+          await sendNotification({
+            token: laboratory.userFCMToken,
+            title: "Appointment Assigned Successfully",
+            body: `Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.`,
+            data: { type: "system" },
+          });
+        }
+
+        await sendEmail(
+          laboratory.email,
+          "Appointment Assigned Successfully",
+          `Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.`,
+          `<p>Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.</p>`
+        );
+      }
 
       await this.notification.create({
         receiverId: employee._id,
@@ -945,15 +962,6 @@ class Service {
           token: user.userFCMToken,
           title: "Appointment Assigned",
           body: `You have successfully assigned then appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} to ${employee.fullName} having Employee ID: ${employee.employeeId}. This appointment is booked for ${appointment.labortary}.`,
-          data: { type: "system" },
-        });
-      }
-
-      if (laboratory.userFCMToken && laboratory.isNotification) {
-        await sendNotification({
-          token: laboratory.userFCMToken,
-          title: "Appointment Assigned Successfully",
-          body: `Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.`,
           data: { type: "system" },
         });
       }
@@ -976,17 +984,10 @@ class Service {
         ),
 
         sendEmail(
-          laboratory.email,
-          "Appointment Assigned Successfully",
-          `Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.`,
-          `<p>Your appointment of ${appointment.patientName} at ${appointment.appointmentDateTime} is successfully assigned to ${employee.fullName} having Employee ID: ${employee.employeeId}.</p>`
-        ),
-
-        sendEmail(
           appointment.employeeId?.email,
           "New Appointment Assigned",
-          `Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.labortary}.`,
-          `<p>Your appointment for ${appointment.patientName} with ID: ${appointment._id} has been updated to ${status}. This appointment was booked for ${appointment.labortary}.</p>`
+          `You have been assigned to an appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime}.`,
+          `<p>You have been assigned to an appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime}.</p>`
         ),
       ]);
 
@@ -1349,11 +1350,114 @@ class Service {
         });
       }
 
+      const appointments = await this.appointment.find({
+        employeeId: employee._id,
+        status: "Pending",
+      });
+      if (appointments.length > 0) {
+        const otherEmployees = await this.employee.find({
+          _id: { $ne: employee._id },
+        });
+        if (otherEmployees.length > 0) {
+          for (const appointment of appointments) {
+            const newEmployee =
+              otherEmployees[Math.floor(Math.random() * otherEmployees.length)];
+            appointment.employeeId = newEmployee._id;
+            await appointment.save();
+
+            await this.notification.create({
+              receiverId: newEmployee._id,
+              type: "system",
+              title: "New Appointment Assigned",
+              body: `You have been assigned to an appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime}.`,
+              isRead: false,
+            });
+
+            if (newEmployee.userFCMToken && newEmployee.isNotification) {
+              await sendNotification({
+                token: newEmployee.userFCMToken,
+                title: "New Appointment Assigned",
+                body: `You have been assigned to an appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime}.`,
+                data: { type: "system" },
+              });
+            }
+
+            await sendEmail(
+              newEmployee.email,
+              "New Appointment Assigned",
+              `You have been assigned to an appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime}.`,
+              `<p>You have been assigned to an appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime}.</p>`
+            );
+
+            await this.notification.create({
+              receiverId: user._id,
+              type: "system",
+              title: "Appointment Reassigned",
+              body: `Your appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime} is reassigned to ${newEmployee.fullName} having Employee ID: ${newEmployee.employeeId}.`,
+              isRead: false,
+            });
+
+            if (user.userFCMToken && user.isNotification) {
+              await sendNotification({
+                token: user.userFCMToken,
+                title: "Appointment Reassigned",
+                body: `Your appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime} is reassigned to ${newEmployee.fullName} having Employee ID: ${newEmployee.employeeId}.`,
+                data: { type: "system" },
+              });
+            }
+
+            await sendEmail(
+              user.email,
+              "Appointment Reassigned",
+              `Your appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime} is reassigned to ${newEmployee.fullName} having Employee ID: ${newEmployee.employeeId}.`,
+              `<p>Your appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime} is reassigned to ${newEmployee.fullName} having Employee ID: ${newEmployee.employeeId}.</p>`
+            );
+          }
+        } else {
+          for (const appointment of appointments) {
+            appointment.employeeId = null;
+            await appointment.save();
+
+            await this.notification.create({
+              receiverId: user._id,
+              type: "system",
+              title: "Appointment Reassignment Needed",
+              body: `Your appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime} needs to reassigned to another employee.`,
+              isRead: false,
+            });
+
+            if (user.userFCMToken && user.isNotification) {
+              await sendNotification({
+                token: user.userFCMToken,
+                title: "Appointment Reassignment Needed",
+                body: `Your appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime} needs to reassigned to another employee.`,
+                data: { type: "system" },
+              });
+            }
+
+            await sendEmail(
+              user.email,
+              "Appointment Reassignment Needed",
+              `Your appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime} needs to reassigned to another employee.`,
+              `<p>Your appointment of ${appointment.labortary} for ${appointment.patientName} at ${appointment.appointmentDateTime} needs to reassigned to another employee.</p>`
+            );
+          }
+        }
+      }
+
       await this.notification.create({
         receiverId: user._id,
         type: "system",
         title: "Employee Deleted",
         body: `You have successfully deleted the employee ${employee.fullName} having Employee ID: ${employee.employeeId}.`,
+        isRead: false,
+      });
+
+      await this.notification.create({
+        receiverId: employee._id,
+        type: "system",
+        title: "Removed from All Mobile Phlebotomy Services",
+        body: `As an employee you are removed by the admin from All Mobile Phlebotomy Services.`,
         isRead: false,
       });
 
@@ -1383,7 +1487,7 @@ class Service {
           `<p>You have successfully deleted the employee ${employee.fullName} having Employee ID: ${employee.employeeId}.</p>`
         ),
         sendEmail(
-          laboratory.email,
+          employee.email,
           "Removed from All Mobile Phlebotomy Services",
           `As an employee you are removed by the admin from All Mobile Phlebotomy Services.`,
           `<p>As an employee you are removed by the admin from All Mobile Phlebotomy Services.</p>`

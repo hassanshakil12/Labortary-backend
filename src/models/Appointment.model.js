@@ -74,16 +74,7 @@ const appointmentSchema = new mongoose.Schema(
     employeeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",
-      validate: {
-        validator: function (v) {
-          if (this.createdBy === "admin") {
-            return !!v;
-          }
-        },
-        message: "Employee ID is required when created by admin",
-      },
     },
-
     labortary: {
       type: String,
       required: [true, "Laboratory is required"],
